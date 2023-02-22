@@ -1,0 +1,57 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: workload-2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    opa-istio-injection: "true"
+  labels:
+    app: workload-2
+  name: workload-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workload-2
+  template:
+    metadata:
+      annotations:
+        opa-istio-injection: "true"
+        inject.istio.io/templates: "sidecar,spire"
+      labels:
+        app: workload-2
+    spec:
+      serviceAccountName: workload-2
+      containers:
+      - image: jwt-retriever:latest
+        imagePullPolicy: IfNotPresent
+        name: jwt-retriever
+        env:
+          - name: SPIFFE_ENDPOINT_SOCKET
+            value: unix:///spire-agent-socket/socket
+          - name: AUDIENCE
+            value: opa-istio
+          - name: JWT_PATH
+            value: /svid/token
+        volumeMounts:
+        - name: svid
+          mountPath: /svid
+          readOnly: false
+        - name: spire-agent-socket
+          mountPath: /spire-agent-socket
+          readOnly: true
+      - image: stefanprodan/podinfo
+        name: podinfo
+        ports:
+        - containerPort: 9898
+      volumes:
+      - name: spire-agent-socket
+        csi:
+          driver: "csi.spiffe.io"
+          readOnly: true
+      - name: svid
+        emptyDir: {}

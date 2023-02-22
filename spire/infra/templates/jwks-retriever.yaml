@@ -1,0 +1,44 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jwks-retriever
+spec:
+  selector:
+    matchLabels:
+      app: jwks-retriever
+  template:
+    metadata:
+      labels:
+        app: jwks-retriever
+    spec:
+      initContainers:
+        - name: init
+          image: gcr.io/spiffe-io/wait-for-it
+          args: ["-t", "30", "spire-server.spire.svc:8081"]
+      containers:
+      - name: jwks-retriever
+        image: jwks-retriever:latest
+        imagePullPolicy: Never
+        env:
+          - name: SPIFFE_ENDPOINT_SOCKET
+            value: unix:///spire-agent-socket/socket
+          - name: TRUST_DOMAIN
+            value: ${spire_trust_domain}
+          - name: JWKS_PATH
+            value: /run/spire/bundle/jwks.json
+        volumeMounts:
+          - name: spire-agent-socket
+            mountPath: /spire-agent-socket
+            readOnly: true
+          - name: jwks-dir
+            mountPath: /run/spire/bundle
+            readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: jwks-dir
+          emptyDir:
+            medium: Memory

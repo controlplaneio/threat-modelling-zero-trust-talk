@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opa-istio-config
+data:
+  config.yaml: |
+    services:
+      s3:
+        url: https://${opa_policy_bucket_name}.s3.${aws_region}.amazonaws.com
+        credentials:
+          s3_signing:
+            web_identity_credentials:
+              aws_region: ${aws_region}
+    bundles:
+      policy:
+        service: s3
+        resource: bundle.tar.gz
+        signing:
+          keyid: aws-kms
+    keys:
+      aws-kms:
+        key: aws-kms
+    plugins:
+      envoy_ext_authz_grpc:
+        addr: :9191
+        path: istio/authz/allow
+    decision_logs:
+      console: true

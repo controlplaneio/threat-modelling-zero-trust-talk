@@ -1,0 +1,8 @@
+.idea/
+bin/
+.terraform/
+terraform.tfstate*
+bundle.tar.gz
+venv/
+example.rego
+bin/

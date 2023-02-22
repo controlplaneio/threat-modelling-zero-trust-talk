@@ -1,0 +1,48 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ${sa_name}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-consumer
+spec:
+  selector:
+    matchLabels:
+      app: s3-consumer
+  template:
+    metadata:
+      labels:
+        app: s3-consumer
+    spec:
+      serviceAccountName: ${sa_name}
+      containers:
+      - name: s3-consumer
+        image: s3-consumer:latest
+        imagePullPolicy: Never
+        env:
+          - name: SPIFFE_ENDPOINT_SOCKET
+            value: unix:///spire-agent-socket/socket
+          - name: AUDIENCE
+            value: ${audience}
+          - name: AWS_REGION
+            value: ${aws_region}
+          - name: AWS_ROLE
+            value: ${aws_role}
+          - name: S3_BUCKET
+            value: ${s3_bucket}
+          - name: S3_OBJECT_KEY
+            value: ${s3_object_key}
+        ports:
+          - containerPort: 8443
+        volumeMounts:
+          - name: spire-agent-socket
+            mountPath: /spire-agent-socket
+            readOnly: true
+      volumes:
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true

@@ -1,0 +1,16 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+ name: ext-authz2
+ namespace: istio-system
+spec:
+ selector:
+   matchLabels:
+     app: workload-2
+ action: CUSTOM
+ provider:
+   name: "opa.local"
+ rules:
+ - to:
+   - operation:
+       notPaths: ["/health"]

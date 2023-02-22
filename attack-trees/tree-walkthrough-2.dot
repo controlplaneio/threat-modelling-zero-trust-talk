@@ -1,0 +1,53 @@
+digraph {
+	// Base Styling
+	rankdir="TB";
+	splines=true;
+	overlap=false;
+	nodesep="0.2";
+	ranksep="0.4";
+	bgcolor="transparent";
+	// label="Some Title";
+	labelloc="t";
+	fontname="Montserrat";
+	node [ fontname="Montserrat" margin=0.28 shape="plaintext" style="filled, rounded" ];
+	edge [ fontname="Montserrat" color="#2B303A" ];
+
+	// List of Nodes
+
+	// base nodes
+	// reality [ label="Reality" fillcolor="#2B303A" fontcolor="#ffffff" ]
+	// attack_win [ label="Access video\nrecordings in\nS3 bucket\n(attackers win)" fillcolor="#DB2955" fontcolor="#ffffff" ]
+
+	// green nodes == OR nodes
+	node [ color="#D6E9D5" ]
+	leak_sensitive_data [ label="Leak sensitive \ndata" ]
+	exfiltrate_data [ label="Exfiltrate data" ]
+	sniff_traffic [ label="Sniff traffic \nin transit" ]
+	
+
+	// blue nodes == AND nodes
+	node [ color="#84BCE6" ]
+	exfiltrate_from_PDP [ label="Exfiltrate data via \nexternal HTTP call \nfrom OPA container" ]
+
+	// white nodes == single nodes
+	node [ color="#DDDDDD" ]
+
+	// List of Edges
+	leak_sensitive_data -> sniff_traffic
+	leak_sensitive_data -> exfiltrate_data
+	exfiltrate_data -> exfiltrate_from_PDP
+
+	// Subgraphs / Clusters
+
+	// these clusters enforce the correct hierarchies
+  
+	subgraph same_level_a {
+		rank=same;
+		sniff_traffic
+		exfiltrate_data
+	}
+
+  // Enforcing ordering in levels
+  
+	sniff_traffic -> exfiltrate_data [ style="invis" ]
+}

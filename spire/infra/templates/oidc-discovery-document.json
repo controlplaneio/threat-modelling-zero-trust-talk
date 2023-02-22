@@ -1,0 +1,15 @@
+{
+  "issuer": "https://${spire_issuer}",
+  "jwks_uri": "https://${spire_issuer}/keys",
+  "authorization_endpoint": "",
+  "response_types_supported": [
+    "id_token",
+    "access_token"
+  ],
+  "subject_types_supported": [],
+  "id_token_signing_alg_values_supported": [
+    "RS256",
+    "ES256",
+    "ES384"
+  ]
+}
