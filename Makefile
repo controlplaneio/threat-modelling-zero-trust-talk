@@ -1,89 +1,116 @@
-NAME := hamlet-vase-service
 GITHUB_ORG := controlplaneio
 DOCKER_HUB_ORG := controlplane
+KIND_VERSION := v0.17.0
 
-### github.com/controlplaneio/ensure-content.git makefile-header START ###
-ifeq ($(NAME),)
-  $(error NAME required, please add "NAME := project-name" to top of Makefile)
-else ifeq ($(GITHUB_ORG),)
-    $(error GITHUB_ORG required, please add "GITHUB_ORG := controlplaneio" to top of Makefile)
-else ifeq ($(DOCKER_HUB_ORG),)
-    $(error DOCKER_HUB_ORG required, please add "DOCKER_HUB_ORG := controlplane" to top of Makefile)
-endif
+WATCHER_IMAGE_NAME := $(shell uuidgen)
+JWT_FETCH_IMAGE_NAME := $(shell uuidgen)
 
-PKG := github.com/$(GITHUB_ORG)/$(NAME)
-# TODO migrate to quay.io
-CONTAINER_REGISTRY_FQDN ?= docker.io
-CONTAINER_REGISTRY_URL := $(CONTAINER_REGISTRY_FQDN)/$(DOCKER_HUB_ORG)/$(NAME)
+.PHONY: delete-cluster
+delete-cluster:
+	kind delete cluster --name tmzt-local-example
 
-SHELL := /bin/bash
-BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+.PHONY: install-kind
+install-kind:
+	curl -Lo "${HOME}"/kind https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64
+	chmod +x "${HOME}"/kind
+	sudo mv "${HOME}"/kind /usr/local/bin/kind
 
-GIT_MESSAGE := $(shell git -c log.showSignature=false \
-	log --max-count=1 --pretty=format:"%H" 2>/dev/null)
-GIT_SHA := $(shell git -c log.showSignature=false rev-parse HEAD 2>/dev/null)
-GIT_TAG := $(shell bash -c 'TAG=$$(git -c log.showSignature=false \
-	describe --tags --exact-match --abbrev=0 $(GIT_SHA) 2>/dev/null); echo "$${TAG:-dev}"')
-GIT_UNTRACKED_CHANGES := $(shell git -c log.showSignature=false \
-	status --porcelain 2>/dev/null)
+.PHONY: create-cluster
+create-cluster: delete-cluster
+	kind create cluster --config kind/kind-cluster.yaml
 
-ifneq ($(GIT_UNTRACKED_CHANGES),)
-  GIT_COMMIT := $(GIT_COMMIT)-dirty
-  ifneq ($(GIT_TAG),dev)
-    GIT_TAG := $(GIT_TAG)-dirty
-  endif
-endif
+.PHONY: create-target-bucket
+create-target-bucket:
+	aws s3api create-bucket \
+	--bucket "${S3_TARGET_BUCKET_NAME}" \
+	--region "${AWS_REGION}" \
+	--create-bucket-configuration LocationConstraint="${AWS_REGION}"
+	aws s3 cp aws-resources/test.txt s3://"${S3_TARGET_BUCKET_NAME}"/test.txt
 
-CONTAINER_TAG ?= $(GIT_TAG)
-CONTAINER_TAG_LATEST := $(CONTAINER_TAG)
-CONTAINER_NAME := $(CONTAINER_REGISTRY_URL):$(CONTAINER_TAG)
+.PHONY: create-oidc-bucket
+create-oidc-bucket:
+	aws s3api create-bucket \
+	--bucket "${OIDC_BUCKET_NAME}" \
+	--region "${AWS_REGION}" \
+	--acl public-read \
+	--create-bucket-configuration LocationConstraint="${AWS_REGION}"
 
-# if no untracked changes and tag is not dev, release `latest` tag
-ifeq ($(GIT_UNTRACKED_CHANGES),)
-  ifneq ($(GIT_TAG),dev)
-    CONTAINER_TAG_LATEST = latest
-  endif
-endif
+.PHONY: create-iam-policy
+create-iam-policy:
+	envsubst < aws-resources/iam/read-target-bucket-policy.json > aws-resources/iam/applied-target-bucket-policy.json
+	aws iam create-policy --policy-name spire-target-s3-policy --policy-document file://./aws-resources/iam/applied-target-bucket-policy.json
+	rm aws-resources/iam/applied-target-bucket-policy.json
 
-CONTAINER_NAME_LATEST := $(CONTAINER_REGISTRY_URL):$(CONTAINER_TAG_LATEST)
+.PHONY: create-federated-role
+create-federated-role:
+	envsubst < aws-resources/iam/trust-policy.json > aws-resources/iam/applied-trust-policy.json
+	aws iam create-role --role-name spire-target-s3-role --assume-role-policy-document file://./aws-resources/iam/applied-trust-policy.json
+	rm aws-resources/iam/applied-trust-policy.json
 
-# golang buildtime, more at https://github.com/jessfraz/pepper/blob/master/Makefile
-CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
-GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
-GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+.PHONY: attach-policy
+attach-policy:
+	aws iam attach-role-policy --role-name spire-target-s3-role --policy-arn "${BUCKET_POLICY_ARN}"
 
-export NAME CONTAINER_REGISTRY_URL BUILD_DATE GIT_MESSAGE GIT_SHA GIT_TAG \
-  CONTAINER_TAG CONTAINER_NAME CONTAINER_NAME_LATEST CONTAINER_NAME_TESTING
-### github.com/controlplaneio/ensure-content.git makefile-header END ###
+.PHONY: install-spire
+install-spire:
+	kubectl label namespace default example=true
+	kubectl apply -f kind/manifests/spire/spire-namespace.yaml
+	kubectl apply -f kind/manifests/spire/crds.yaml
+	envsubst < kind/manifests/spire/template-spire-controller-manager-config.yaml > kind/manifests/spire/spire-controller-manager-config.yaml
+	kubectl create configmap spire-controller-manager-config -n spire --from-file=kind/manifests/spire/spire-controller-manager-config.yaml
+	rm kind/manifests/spire/spire-controller-manager-config.yaml
+	kubectl apply -f kind/manifests/spire/spiffe-csi-driver.yaml
+	kubectl apply -f kind/manifests/spire/spire-controller-manager-webhook.yaml
+	envsubst < kind/manifests/spire/spire-server.yaml | kubectl apply -f -
+	envsubst < kind/manifests/spire/spire-agent.yaml | kubectl apply -f -
 
-.PHONY: all
-.SILENT:
+.PHONY: create-cluster-spiffeid
+create-cluster-spiffeid:
+	envsubst < kind/manifests/spiffe-ids/cluster-spiffe-id.yaml | kubectl apply -f -
 
-all: help
+.PHONY: show-workload-registrations
+show-workload-registrations:
+	./scripts/show-spire-entries.sh
 
-.PHONY: build
-build: ## builds a docker image
-	@echo "+ $@" >&2
-	docker build --tag "${CONTAINER_NAME}" .
+.PHONY: create-watcher
+create-watcher:
+	docker build -t ttl.sh/${WATCHER_IMAGE_NAME}:1h ./golang-watcher
+	docker push ttl.sh/${WATCHER_IMAGE_NAME}:1h
+	WATCHER_IMAGE_TAG="ttl.sh/${WATCHER_IMAGE_NAME}:1h" envsubst < kind/manifests/watcher.yaml | kubectl apply -f -
 
-.PHONY: run
-run: ## runs the last build docker image
-	@echo "+ $@" >&2
-	docker run -it "${CONTAINER_NAME}"
+.PHONY: get-keys
+get-keys:
+	./scripts/get-keys.sh
 
-.PHONY: test
-test: ## test the application
-	@echo "+ $@" >&2
-	if [[ "$$(bats --count test/)" -lt 1 ]]; then echo 'No tests found' >&2; exit 1; fi
-	bats --recursive \
-		--timing \
-		--jobs 10 \
-		test/
+.PHONY: openid-config-upload
+openid-config-upload:
+	aws s3 cp aws-resources/keys s3://"${OIDC_BUCKET_NAME}"/keys
+	aws s3api put-object-acl --bucket "${OIDC_BUCKET_NAME}" --key keys --acl public-read
+	envsubst < aws-resources/openid-configuration > aws-resources/applied-openid-configuration
+	aws s3 cp aws-resources/applied-openid-configuration s3://"${OIDC_BUCKET_NAME}"/.well-known/openid-configuration
+	rm aws-resources/applied-openid-configuration
+	aws s3api put-object-acl --bucket "${OIDC_BUCKET_NAME}" --key .well-known/openid-configuration --acl public-read
 
-.PHONY: help
-help: ## parse jobs and descriptions from this Makefile
-	@grep -E '^[ a-zA-Z0-9_-]+:([^=]|$$)' $(MAKEFILE_LIST) \
-    | grep -Ev '^help\b[[:space:]]*:' \
-    | sort \
-    | awk 'BEGIN {FS = ":.*?##"}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.PHONY: deploy-aws-cli-pod
+deploy-aws-cli-pod:
+	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt
+	docker push ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h
+	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/aws-cli.yaml | kubectl apply -f -
+
+.PHONY: fetch-from-bucket
+fetch-from-bucket:
+	./scripts/fetch-from-bucket.sh
+
+.PHONY: teardown-aws-resources
+teardown-aws-resources:
+	aws s3 rm s3://"${S3_TARGET_BUCKET_NAME}" --recursive
+	aws s3 rb s3://"${S3_TARGET_BUCKET_NAME}"
+	aws s3 rm s3://"${OIDC_BUCKET_NAME}" --recursive
+	aws s3 rb s3://"${OIDC_BUCKET_NAME}"
+	aws iam detach-role-policy --role-name spire-target-s3-role --policy-arn "${BUCKET_POLICY_ARN}"
+	aws iam delete-role --role-name spire-target-s3-role
+	aws iam delete-policy --policy-arn "${BUCKET_POLICY_ARN}"
+	aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "${OIDC_PROVIDER_ARN}"
+	
+
 

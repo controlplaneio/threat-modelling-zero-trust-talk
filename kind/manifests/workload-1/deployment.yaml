@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    opa-istio-injection: "true"
+  labels:
+    app: podinfo
+  name: podinfo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: podinfo
+  template:
+    metadata:
+      annotations:
+        opa-istio-injection: "true"
+#        inject.istio.io/templates: "sidecar,spire"
+      labels:
+        app: podinfo
+#        spire.spiffe.io/spiffeid: podinfo
+    spec:
+      serviceAccountName: podinfo
+      containers:
+      - image: stefanprodan/podinfo
+        name: podinfo
+        ports:
+        - containerPort: 9898
+        volumeMounts:
+        - name: spire-agent-socket
+          mountPath: /spire-agent-socket
+          readOnly: true
+        env:
+        - name: SPIFFE_ENDPOINT_SOCKET
+          value: unix:///spire-agent-socket/socket
+      volumes:
+      - name: spire-agent-socket
+        csi:
+          driver: "csi.spiffe.io"
+          readOnly: true

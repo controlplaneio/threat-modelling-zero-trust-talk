@@ -1,3 +1,7 @@
+# Files created during tutorial #
+aws-resources/keys
+keys
+
 # Secrets #
 ###########
 *.pem
