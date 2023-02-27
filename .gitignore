@@ -1,6 +1,8 @@
 # Files created during tutorial #
 aws-resources/keys
 keys
+chain.pem
+bundle.tar.gz
 
 # Secrets #
 ###########

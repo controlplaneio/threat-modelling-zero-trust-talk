@@ -35,11 +35,24 @@ create-oidc-bucket:
 	--acl public-read \
 	--create-bucket-configuration LocationConstraint="${AWS_REGION}"
 
+.PHONY: create-opa-policy-bucket
+create-opa-policy-bucket:
+	aws s3api create-bucket --bucket "${OPA_POLICY_BUCKET_NAME}" --create-bucket-configuration LocationConstraint=eu-west-2
+	aws s3api put-public-access-block \
+    --bucket "${OPA_POLICY_BUCKET_NAME}" \
+    --public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
 .PHONY: create-iam-policy
 create-iam-policy:
 	envsubst < aws-resources/iam/read-target-bucket-policy.json > aws-resources/iam/applied-target-bucket-policy.json
 	aws iam create-policy --policy-name spire-target-s3-policy --policy-document file://./aws-resources/iam/applied-target-bucket-policy.json
 	rm aws-resources/iam/applied-target-bucket-policy.json
+
+.PHONY: create-opa-s3-iam-policy
+create-opa-s3-iam-policy:
+	envsubst < aws-resources/iam/opa-bucket-policy.json > aws-resources/iam/applied-opa-bucket-policy.json
+	aws iam create-policy --policy-name spire-opa-s3-policy --policy-document file://./aws-resources/iam/applied-opa-bucket-policy.json
+	rm aws-resources/iam/applied-opa-bucket-policy.json
 
 .PHONY: create-federated-role
 create-federated-role:
@@ -110,7 +123,58 @@ teardown-aws-resources:
 	aws iam detach-role-policy --role-name spire-target-s3-role --policy-arn "${BUCKET_POLICY_ARN}"
 	aws iam delete-role --role-name spire-target-s3-role
 	aws iam delete-policy --policy-arn "${BUCKET_POLICY_ARN}"
+	aws iam detach-role-policy --role-name fetch-opa-policy-role --policy-arn "${OPA_BUCKET_POLICY_ARN}"
+	aws iam delete-role --role-name fetch-opa-policy-role
+	aws iam delete-policy --policy-arn "${OPA_BUCKET_POLICY_ARN}"
 	aws iam delete-open-id-connect-provider --open-id-connect-provider-arn "${OIDC_PROVIDER_ARN}"
-	
+	aws s3 rm s3://"${OPA_POLICY_BUCKET_NAME}" --recursive
+	aws s3 rb s3://"${OPA_POLICY_BUCKET_NAME}"
 
+.PHONY: push-policy-bundle
+push-policy-bundle:
+	mkdir applied-policy
+	envsubst < policy/example.rego > applied-policy/example.rego
+	opa build --bundle ./applied-policy -o bundle.tar.gz
+	rm -rf applied-policy
+	aws s3 cp bundle.tar.gz s3://"${OPA_POLICY_BUCKET_NAME}"/bundle.tar.gz
 
+.PHONY: create-opa-role
+create-opa-role:
+	envsubst < aws-resources/iam/opa-trust-policy.json > aws-resources/iam/applied-opa-trust-policy.json
+	aws iam create-role --role-name fetch-opa-policy-role --assume-role-policy-document file://./aws-resources/iam/applied-opa-trust-policy.json
+	rm aws-resources/iam/applied-opa-trust-policy.json
+
+.PHONY: attach-opa-bucket-policy
+attach-opa-bucket-policy:
+	aws iam attach-role-policy --role-name fetch-opa-policy-role --policy-arn "${OPA_BUCKET_POLICY_ARN}"
+
+.PHONY: install-istio
+install-istio:
+	envsubst < opa-istio/istio-operator.yaml > opa-istio/applied-istio-operator.yaml
+	istioctl install --skip-confirmation -f opa-istio/applied-istio-operator.yaml
+	rm opa-istio/applied-istio-operator.yaml
+
+.PHONY: opa-istio-resources
+opa-istio-resources:
+	envsubst < opa-istio/opa-injection.yaml | kubectl apply -f -
+	kubectl apply -f opa-istio/serviceentry.yaml
+	kubectl apply -f opa-istio/authz-policy.yaml
+	kubectl apply -f opa-istio/authz-policy-2.yaml
+	envsubst < opa-istio/opa-istio-configmap.yaml | kubectl apply -f -
+
+.PHONY: deploy-example-workloads
+deploy-example-workloads:
+	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt
+	docker push ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h
+	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/workload-1/deployment.yaml | kubectl apply -f -
+	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/workload-2/deployment.yaml | kubectl apply -f -
+	kubectl apply -f kind/manifests/workload-1/service.yaml
+	kubectl apply -f kind/manifests/workload-2/service.yaml
+
+.PHONY: check-istio-certs
+check-istio-certs:
+	./scripts/check-istio-certs.sh
+
+/PHONY: send-example-requests
+send-example-requests:
+	./scripts/send-requests.sh

@@ -1,0 +1,65 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-sidecar
+  annotations:
+    policies.kyverno.io/title: Inject Sidecar Container
+    policies.kyverno.io/category: Sample
+    policies.kyverno.io/subject: Pod,Volume
+    policies.kyverno.io/description: >-
+      The sidecar pattern is very common in Kubernetes whereby other applications can
+      insert components via tacit modification of a submitted resource. This is, for example,
+      often how service meshes and secrets applications are able to function transparently.
+      This policy injects a sidecar container, initContainer, and volume into Pods that match
+      an annotation called `vault.hashicorp.com/agent-inject: true`.      
+spec:
+  rules:
+  - name: inject-sidecar
+    match:
+      resources:
+        kinds:
+        - Deployment
+    mutate:
+      patchStrategicMerge:
+        spec:
+          template:
+            metadata:
+              annotations:
+                (opa-istio-injection): "true"
+            spec:
+              containers:
+              - name: opa-istio
+                image: openpolicyagent/opa:latest-istio
+                imagePullPolicy: IfNotPresent
+                args: [
+                  "run",
+                  "--server",
+                  "--config-file=/config/config.yaml",
+                  "--addr=localhost:8181"
+                ]
+                env:
+                - name: AWS_STS_REGIONAL_ENDPOINTS
+                  value: regional
+                - name: AWS_DEFAULT_REGION
+                  value: eu-west-2
+                - name: AWS_REGION
+                  value: eu-west-2
+                - name: AWS_ROLE_ARN
+                  value: ${OPA_POLICY_FETCH_ROLE_ARN}
+                - name: AWS_WEB_IDENTITY_TOKEN_FILE
+                  value: /svid/jwt.txt
+                volumeMounts:
+                - mountPath: /config
+                  name: opa-istio-config
+                - name: svid
+                  mountPath: /svid
+                  readOnly: true
+              volumes:
+              - name: vault-secret
+                emptyDir:
+                  medium: Memory
+              - name: opa-istio-config
+                configMap:
+                  name: opa-istio-config
+              - name: svid
+                emptyDir: {}

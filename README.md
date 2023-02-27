@@ -2,10 +2,12 @@
 
 ## Dependencies
 
-This example has been tested on Arch Linux, and requires the following dependencies:
+This example has been tested on Arch Linux, and requires the following tools to run:
 - Docker
 - Kind
 - Kubectl
+- Helm
+- Istioctl
 - An active AWS CLI session
 
 The following environment variables need to be exported for this example to work, as explained in the setup steps below:
@@ -16,12 +18,23 @@ The following environment variables need to be exported for this example to work
 - `OIDC_PROVIDER_ARN`
 - `BUCKET_POLICY_ARN`
 - `AWS_ROLE_ARN`
+- `OPA_POLICY_BUCKET_NAME`
+- `OPA_BUCKET_POLICY_ARN`
+- `OPA_POLICY_FETCH_ROLE_ARN`
 
-## AWS Resource Setup
+## Overview
+
+This repo demonstrates how the example architecture from the ControlPlane talk `What can go wrong when you trust nobody? Threat Modelling Zero Trust` can be run locally in a Kind cluster. This allows us to spin up components quickly and easily, with only a small amount of cloud resources required. Understanding each component in more detail by configuring integrations in this manner will ultimately lead to a more comprehensive threat model. 
+
+Two demonstrations are included:
+- Demo 1 - Authenticate to AWS from a Pod in our Kind cluster, using an SVID issued by the cluster's SPIRE server;
+- Demo 2 - Deploy two workloads in an Istio service mesh, with External Authorisation set up using OPA sidecars. OPA policy bundles are downloaded from an S3 bucket using the technique shown in Demo 1. Istio is integrated with SPIRE, and Rego traffic authorisation policies are based on X.509 SVIDs provided to our workloads via SPIRE.  
+
+## Demo 1 - AWS Resource Setup
 
 ### Target S3 Bucket
 
-This example exercise will involve retrieving a file in a private AWS S3 Bucket from a pod running on a local Kind cluster, using a SPIRE-issued JWT SVID. In order to do this, we will create an IAM Identity Provider in AWS to facilitate federated access for workloads in our Kind cluster. 
+This example exercise will involve retrieving a file in a private AWS S3 Bucket from a pod running on a local Kind cluster, using a SPIRE-issued JWT SVID. In order to do this, we will create an IAM OIDC Provider in AWS to facilitate federated access for workloads in our Kind cluster. 
 
 First we need to create an S3 Bucket to hold our private resource. Export a chosen `AWS_REGION` and unique bucket name for the target bucket, create the bucket, and upload a sample text file:
 ```
@@ -32,7 +45,7 @@ make create-target-bucket
 
 ### Public S3 Bucket to Hold OIDC Discovery Data
 
-In a Production scenario, we would use a service such as the [Spire OIDC Discovery Provider](https://github.com/spiffe/spire/blob/main/support/oidc-discovery-provider/README.md) to expose JWT signing keys of our SPIRE server via the `/.well-known/openid-configuration` (for example, as per [SIRE AWS OIDC Authentication](https://spiffe.io/docs/latest/keyless/oidc-federation-aws/)). However, here we are only intended in demonstrating how all the underlying pieces fit together for threat modelling purposes. As such, in order to limit the cloud infrastructure required to run this simple example, we will create a publicly readable S3 Bucket to host the `JWKS` and `openid-configuration` files:
+In a Production scenario, we would use a service such as the [Spire OIDC Discovery Provider](https://github.com/spiffe/spire/blob/main/support/oidc-discovery-provider/README.md) to expose JWT signing keys of our SPIRE server via the `/.well-known/openid-configuration` (for example, as per [SIRE AWS OIDC Authentication](https://spiffe.io/docs/latest/keyless/oidc-federation-aws/)). However, here we only intend to demonstrate how all the underlying pieces fit together for threat modelling purposes. As such, in order to limit the cloud infrastructure required to run this simple example, we will create a publicly readable S3 Bucket to host the `JWKS` and `openid-configuration` files:
 
 ```
 export OIDC_BUCKET_NAME="<Insert unique name here>"
@@ -54,7 +67,7 @@ thumbprint=$(echo $hex_thumbprint | sed 's/://g')
 ```
 ### IAM Identity Provider
 
-Create an IAM Identity Provider which will query the OIDC discovery document contained in our S3 bucket:
+Create an IAM OIDC Provider which will query the OIDC discovery document contained in our S3 bucket:
 
 ```
 aws iam create-open-id-connect-provider --url "https://${SPIRE_TRUST_DOMAIN}" --thumbprint-list $thumbprint --client-id-list "spire-test-s3"
@@ -80,6 +93,8 @@ export BUCKET_POLICY_ARN="<insert arn here>"
 
 ### IAM Role
 
+Create an IAM role which we will permit an example workload in our cluster to assume via an appropriate trust relationship:
+
 ```
 make create-federated-role
 make attach-policy
@@ -90,11 +105,11 @@ Note the ARN of the created role, and export it as an environment variable:
 export AWS_ROLE_ARN="<insert arn here>"
 ```
 
-## Kind Cluster Setup
+## Demo 1 - Kind Cluster Setup
 
 Create a Kind cluster:
 ```
-make create
+make create-cluster
 ```
 
 Deploy the SPIRE Server (along with the SPIRE Controller Manager), Agent (along with the SPIFFE CSI Driver), and associated necessary resources:
@@ -150,7 +165,86 @@ Once the AWS CLI Pod is running, we can exec into the AWS CLI container and retr
 make fetch-from-bucket
 ```
 
-Never gonna let you down!
+Never gonna let you down! 
+
+Note that this step must be run within 5 minutes of the init container running, otherwise the JWT will expire. If this happens, simply delete the `aws-cli` deployment and redeploy. In a non-demonstration environment, the JWT Fetcher code could be modified to request a new JWT SVID before the previous one has expired. 
+
+## Demo 2 - Configure Istio External Authorisation
+
+Label the default namespace to enable automatic Istio sidecar (Envoy proxy) injection:
+
+```
+kubectl label namespace default istio-injection=enabled
+```
+
+Install Kyverno in Standalone mode using helm version > 3.2:
+```
+helm repo add kyverno https://kyverno.github.io/kyverno/
+helm repo update
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace --set replicaCount=1
+```
+
+Choose a unique bucket name and create an S3 bucket to hold OPA policy, and ensure that public access is turned off:
+```
+export OPA_POLICY_BUCKET_NAME=<insert unique name here>
+make create-opa-policy-bucket
+```
+
+Build the OPA policy bundle and push to the S3 bucket:
+```
+make push-policy-bundle
+```
+
+Create an IAM policy to allow read access to this policy bucket:
+```
+make create-opa-s3-iam-policy
+```
+
+Note the policy ARN and export as an environment variable:
+```
+export OPA_BUCKET_POLICY_ARN=<insert arn here>
+```
+
+Create an IAM role which will be able to read the OPA policy bucket, and which we will allow two example workloads `workload-1` and `workload-2` to assume, as federated principles through an appropriate trust relationship:
+```
+make create-opa-role
+make attach-opa-bucket-policy
+```
+
+Note the role and export as an environment variable:
+```
+export OPA_POLICY_FETCH_ROLE_ARN=<insert arn here>
+```
+
+Install Istio: 
+```
+make install-istio
+```
+
+Create the following resources:
+- a Kyverno Cluster Policy to inject an OPA sidecar into pods based on an annotation
+- a ServiceEntry to map requests to OPA to localhost:9191 assuming that OPA has been deployed as a sidecar
+- an AuthorizationPolicy for each workload, stating that authorization of requests to our workloads should be routed to OPA
+- a ConfigMap for the OPA config.
+```
+make opa-istio-resources
+```
+
+Deploy our two sample workloads:
+
+```
+make deploy-example-workloads
+```
+
+Check that X.509 certificates used by Istio for mTLS have been issued by SPIRE:
+```
+make check-istio-certs
+```
+
+Make some example requests between `workload-1` and `workload-2`, and observe the OPA decision logs to see that our example Rego policy has been respected:
+```
+make send-example-requests
+```
 
 ## Teardown
 
