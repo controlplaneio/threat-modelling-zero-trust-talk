@@ -106,7 +106,7 @@ openid-config-upload:
 
 .PHONY: deploy-aws-cli-pod
 deploy-aws-cli-pod:
-	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt
+	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt-watcher
 	docker push ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h
 	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/aws-cli.yaml | kubectl apply -f -
 
@@ -164,7 +164,7 @@ opa-istio-resources:
 
 .PHONY: deploy-example-workloads
 deploy-example-workloads:
-	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt
+	docker build -t ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h ./spiffe-jwt-watcher
 	docker push ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h
 	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/workload-1/deployment.yaml | kubectl apply -f -
 	JWT_FETCH_IMAGE_TAG="ttl.sh/${JWT_FETCH_IMAGE_NAME}:1h" envsubst < kind/manifests/workload-2/deployment.yaml | kubectl apply -f -

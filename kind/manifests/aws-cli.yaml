@@ -23,7 +23,7 @@ spec:
         app: aws-cli
     spec:
       serviceAccountName: aws-cli
-      initContainers:
+      containers:
       - image: ${JWT_FETCH_IMAGE_TAG}
         name: spiffe-jwt
         volumeMounts:
@@ -36,7 +36,6 @@ spec:
         env:
         - name: SPIFFE_ENDPOINT_SOCKET
           value: unix:///spire-agent-socket/socket
-      containers:
       - image: amazon/aws-cli
         name: aws-cli
         command: [ "/bin/bash", "-c", "--" ]

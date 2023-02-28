@@ -47,7 +47,7 @@ spec:
                 - name: AWS_ROLE_ARN
                   value: ${OPA_POLICY_FETCH_ROLE_ARN}
                 - name: AWS_WEB_IDENTITY_TOKEN_FILE
-                  value: /svid/jwt.txt
+                  value: /svid/token
                 volumeMounts:
                 - mountPath: /config
                   name: opa-istio-config

@@ -149,11 +149,11 @@ make openid-config-upload
 
 It should be noted that if we were exposing the SPIRE OIDC Discovery Service in a Production environment, we would not need to carry out the above steps, as our AWS OIDC Provider would already be able to access the `openid-configuration` and keys files. 
 
-### Deploy AWS CLI Pod with JWT Helper Init Container
+### Deploy AWS CLI Pod with JWT Watcher Init Container
 
-We have provided a SPIFFE JWT helper Golang application which can be run as an init container to fetch a JWT SVID with the correct audience (as per our AWS OIDC Provider configuration), and pass this JWT to an AWS CLI container, which can then be used to retrieve the text file we uploaded to our target S3 Bucket. 
+We have provided a SPIFFE JWT Watcher / Fetcher Golang application which can be run as a sidecar container to fetch a JWT SVID with the correct audience (as per our AWS OIDC Provider configuration), and pass this JWT to an AWS CLI container, which can then be used to retrieve the text file we uploaded to our target S3 Bucket. 
 
-Deploy the AWS CLI Pod with the SPIFFE JWT Fetcher (this container will also be built and pushed to ttl.sh):
+Deploy the AWS CLI Pod with the SPIFFE JWT Watcher (this container will also be built and pushed to ttl.sh):
 ```
 make deploy-aws-cli-pod
 ```
@@ -167,7 +167,6 @@ make fetch-from-bucket
 
 Never gonna let you down! 
 
-Note that this step must be run within 5 minutes of the init container running, otherwise the JWT will expire. If this happens, simply delete the `aws-cli` deployment and redeploy. In a non-demonstration environment, the JWT Fetcher code could be modified to request a new JWT SVID before the previous one has expired. 
 
 ## Demo 2 - Configure Istio External Authorisation
 

@@ -26,7 +26,7 @@ spec:
         app: workload-2
     spec:
       serviceAccountName: workload-2
-      initContainers:
+      containers:
       - image: ${JWT_FETCH_IMAGE_TAG}
         name: spiffe-jwt
         volumeMounts:
@@ -36,7 +36,6 @@ spec:
         - name: spire-agent-socket
           mountPath: /spire-agent-socket
           readOnly: true
-      containers:
       - image: stefanprodan/podinfo
         name: podinfo
         ports:
