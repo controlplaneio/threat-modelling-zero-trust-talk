@@ -30,6 +30,34 @@ Two demonstrations are included:
 - Demo 1 - Authenticate to AWS from a Pod in our Kind cluster, using an SVID issued by the cluster's SPIRE server;
 - Demo 2 - Deploy two workloads in an Istio service mesh, with External Authorisation set up using OPA sidecars. OPA policy bundles are downloaded from an S3 bucket using the technique shown in Demo 1. Istio is integrated with SPIRE, and Rego traffic authorisation policies are based on X.509 SVIDs provided to our workloads via SPIRE.  
 
+## Demo Magic 
+
+This repo contains an easy way to run the example using [Demo Magic](https://github.com/paxtonhare/demo-magic). 
+
+First, authenticate to the AWS CLI and export the following environment variables:
+
+```
+export AWS_REGION="<insert region here>"
+export AWS_ACCOUNT_ID="<insert AWS Account ID here>"
+```
+
+Open the `demo-env-vars.sh` file and chose unique names for the following three S3 buckets:
+- `S3_TARGET_BUCKET_NAME`
+- `OIDC_BUCKET_NAME`
+- `OPA_POLICY_BUCKET_NAME`
+
+Save the file and run:
+```
+. demo-env-vars.sh
+```
+
+You can now walk through the demo by running:
+```
+./demo-run.sh
+```
+
+Keep pressing enter until the demo has run and the teardown steps have completed!
+
 ## Demo 1 - AWS Resource Setup
 
 ### Target S3 Bucket
