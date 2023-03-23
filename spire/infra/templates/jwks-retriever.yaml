@@ -12,14 +12,19 @@ spec:
       labels:
         app: jwks-retriever
     spec:
+      initContainers:
+        - name: init
+          image: gcr.io/spiffe-io/wait-for-it
+          args: ["-t", "30", "spire-server.spire.svc:8081"]
       containers:
       - name: jwks-retriever
         image: jwks-retriever:latest
         imagePullPolicy: Never
-        envFrom:
-          - configMapRef:
-              name: spiffe-config
         env:
+          - name: SPIFFE_ENDPOINT_SOCKET
+            value: unix:///spire-agent-socket/socket
+          - name: TRUST_DOMAIN
+            value: ${spire_trust_domain}
           - name: JWKS_PATH
             value: /run/spire/bundle/jwks.json
         volumeMounts:

@@ -1,7 +1,6 @@
 ## Prereqs
 
 ```shell
-export AWS_ACCOUNT_ID=xxx
 export AWS_ACCESS_KEY_ID=xxx
 export AWS_SECRET_ACCESS_KEY=xxx
 export AWS_SESSION_TOKEN=xxx
@@ -10,16 +9,24 @@ export AWS_SESSION_TOKEN=xxx
 ## Infra Up
 
 ```shell
-make create-resources create-cluster spire-up 
-make oidc-get-jwks oidc-upload
+make create-cluster
+make image-build-load-jwks-retriever image-build-load-s3-consumer image-build-load-spiffe-jwt-watcher
+make spire-deploy
 ```
 
 ## Example One
 
 Run
+
 ```shell
 make example-one-deploy
 make example-one-logs
+```
+
+Cleanup
+
+```shell
+make example-one-clean
 ```
 
 ## Example Two
@@ -27,13 +34,19 @@ make example-one-logs
 Run
 
 ```shell
-make kyverno-deploy istio-deploy istio-opa-deploy
+make kyverno-deploy istio-deploy
 make example-two-opa-publish example-two-deploy
 make check-istio-certs send-example-requests
+```
+
+Clean
+
+```shell
+make istio-clean
 ```
 
 ## Infra Down
 
 ```shell
-make delete-resources delete-cluster
+make spire-clean delete-cluster
 ```

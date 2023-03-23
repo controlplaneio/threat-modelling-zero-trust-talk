@@ -1,5 +1,5 @@
 resource "aws_iam_role" "federated" {
-  name               = var.federated_role_name
+  name               = var.role_name
   assume_role_policy = data.aws_iam_policy_document.federated_assume_role_policy.json
 }
 
@@ -8,13 +8,17 @@ resource "aws_iam_role_policy_attachment" "federated_bucket_access" {
   policy_arn = aws_iam_policy.target_bucket_access.arn
 }
 
+data "aws_iam_openid_connect_provider" "spire" {
+  url = "https://${local.spire_trust_domain}"
+}
+
 data "aws_iam_policy_document" "federated_assume_role_policy" {
   statement {
     effect = "Allow"
     principals {
       type = "Federated"
       identifiers = [
-        aws_iam_openid_connect_provider.spire.arn,
+        data.aws_iam_openid_connect_provider.spire.arn,
       ]
     }
     actions = [
@@ -31,7 +35,7 @@ data "aws_iam_policy_document" "federated_assume_role_policy" {
       test     = "StringEquals"
       variable = "${local.spire_trust_domain}:sub"
       values = [
-        "spiffe://${local.spire_trust_domain}/ns/default/sa/${var.s3_consumer_sa}",
+        "spiffe://${local.spire_trust_domain}/ns/default/sa/${var.sa_name}",
       ]
     }
   }

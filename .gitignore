@@ -3,3 +3,4 @@ bin/
 .terraform/
 terraform.tfstate*
 bundle.tar.gz
+venv/

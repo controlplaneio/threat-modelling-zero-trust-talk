@@ -1,5 +1,5 @@
 resource "aws_iam_role" "opa" {
-  name               = var.opa_role_name
+  name               = var.role_name
   assume_role_policy = data.aws_iam_policy_document.opa_assume_role_policy.json
 }
 
@@ -8,13 +8,17 @@ resource "aws_iam_role_policy_attachment" "opa_bucket_access" {
   policy_arn = aws_iam_policy.opa_policy_access.arn
 }
 
+data "aws_iam_openid_connect_provider" "spire" {
+  url = "https://${local.spire_trust_domain}"
+}
+
 data "aws_iam_policy_document" "opa_assume_role_policy" {
   statement {
     effect = "Allow"
     principals {
       type = "Federated"
       identifiers = [
-        aws_iam_openid_connect_provider.spire.arn,
+        data.aws_iam_openid_connect_provider.spire.arn,
       ]
     }
     actions = [
@@ -40,7 +44,7 @@ data "aws_iam_policy_document" "opa_assume_role_policy" {
     principals {
       type = "Federated"
       identifiers = [
-        aws_iam_openid_connect_provider.spire.arn,
+        data.aws_iam_openid_connect_provider.spire.arn,
       ]
     }
     actions = [

@@ -1,7 +1,7 @@
 resource "aws_iam_openid_connect_provider" "spire" {
   url = "https://${local.spire_trust_domain}"
   thumbprint_list = [
-    var.thumbprint,
+    data.external.thumbprint.result.value,
   ]
   client_id_list = [
     var.audience,

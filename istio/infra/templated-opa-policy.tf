@@ -1,5 +1,5 @@
 resource "local_file" "opa_policy" {
-  filename = "${path.module}/../opa/example.rego"
+  filename = "${path.module}/../../opa/example.rego"
   content  = data.template_file.opa_policy.rendered
 }
 

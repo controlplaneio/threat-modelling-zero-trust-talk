@@ -1,5 +1,5 @@
 resource "local_file" "istio_operator" {
-  filename = "${path.module}/../istio/istio-operator.yaml"
+  filename = "${path.module}/../istio-operator.yaml"
   content  = data.template_file.istio_operator.rendered
 }
 
@@ -11,7 +11,7 @@ data "template_file" "istio_operator" {
 }
 
 resource "local_file" "opa_injection" {
-  filename = "${path.module}/../istio/config/opa-injection.yaml"
+  filename = "${path.module}/../config/opa-injection.yaml"
   content  = data.template_file.opa_injection.rendered
 }
 
@@ -23,7 +23,7 @@ data "template_file" "opa_injection" {
 }
 
 resource "local_file" "opa_istio_configmap" {
-  filename = "${path.module}/../istio/config/opa-istio-configmap.yaml"
+  filename = "${path.module}/../config/opa-istio-configmap.yaml"
   content  = data.template_file.opa_istio_configmap.rendered
 }
 
