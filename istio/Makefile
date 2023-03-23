@@ -19,7 +19,7 @@ terraform-apply:
 		-var role_name=fetch-opa-policy-role \
 		-var audience=spire-test-s3 \
 		-var workload_one_sa=workload-1 \
-		-var workload_two_sa=$workload-2\
+		-var workload_two_sa=workload-2\
 		-auto-approve
 
 .PHONY: terraform-destroy

@@ -76,13 +76,16 @@ example-one-logs:
 
 ##@ Example Two
 
-example-two-opa-publish:
+example-two-opa-publish: example-two-clean
 	opa build --bundle ./opa -o bundle.tar.gz
 	aws s3 cp bundle.tar.gz s3://$(OPA_POLICY_BUCKET_NAME)/bundle.tar.gz
 
 example-two-deploy:
 	$(MAKE) -C workload-1 apply
 	$(MAKE) -C workload-2 apply
+
+example-two-clean:
+	rm bundle.tar.gz
 
 .PHONY: check-istio-certs
 check-istio-certs:
