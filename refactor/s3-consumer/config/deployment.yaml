@@ -1,0 +1,44 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aws-cli
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-consumer
+spec:
+  selector:
+    matchLabels:
+      app: s3-consumer
+  template:
+    metadata:
+      labels:
+        app: s3-consumer
+    spec:
+      serviceAccountName: aws-cli
+      containers:
+      - name: s3-consumer
+        image: s3-consumer:latest
+        imagePullPolicy: Never
+        envFrom:
+          - configMapRef:
+              name: spiffe-config
+          - configMapRef:
+              name: example-one-config
+        volumeMounts:
+          - name: spire-agent-socket
+            mountPath: /spire-agent-socket
+            readOnly: true
+          - name: jwks-dir
+            mountPath: /run/spire/bundle
+            readOnly: false
+      volumes:
+        - name: spire-agent-socket
+          csi:
+            driver: csi.spiffe.io
+            readOnly: true
+        - name: jwks-dir
+          emptyDir:
+            medium: Memory

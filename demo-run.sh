@@ -11,7 +11,7 @@ clear
 # set up AWS resources
 pe "make create-target-bucket"
 pe "make create-oidc-bucket"
-pe 'aws iam create-open-id-connect-provider --url "https://${SPIRE_TRUST_DOMAIN}" --thumbprint-list $thumbprint --client-id-list "spire-test-s3"'
+pe "make create-open-id-connect-provider"
 pe "make create-iam-policy"
 pe "make create-federated-role"
 pe "make attach-policy"

@@ -24,7 +24,8 @@ spec:
     spec:
       serviceAccountName: aws-cli
       containers:
-      - image: ${JWT_FETCH_IMAGE_TAG}
+      - image: jwt-fetch:latest
+        imagePullPolicy: IfNotPresent
         name: spiffe-jwt
         volumeMounts:
         - name: svid

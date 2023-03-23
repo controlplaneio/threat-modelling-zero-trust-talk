@@ -24,7 +24,8 @@ spec:
     spec:
       serviceAccountName: watcher
       containers:
-      - image: ${WATCHER_IMAGE_TAG}
+      - image: watcher:latest
+        imagePullPolicy: IfNotPresent
         name: watcher
         volumeMounts:
         - name: spire-agent-socket
