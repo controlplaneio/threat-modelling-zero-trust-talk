@@ -1,55 +1,156 @@
 NAME ?= tmzt
 KIND_VERSION ?= v0.17.0
+ISTIO_VERSION ?= 1.17.1
+HELM_VERSION ?= 3.11.2
+TERRAFORM_VERSION ?= 1.4.2
 
-ifndef AWS_ACCOUNT_ID
-$(error AWS_ACCOUNT_ID is not set)
-endif
-
-ifndef AWS_REGION
-$(error AWS_REGION is not set)
-endif
-
+AWS_REGION ?= eu-west-2
 S3_TARGET_BUCKET_NAME ?= spire-target-bucket
 OIDC_BUCKET_NAME ?= spire-oidc-bucket
 OPA_POLICY_BUCKET_NAME ?= spire-opa-policy-bucket
-SPIRE_TRUST_DOMAIN := $(OIDC_BUCKET_NAME).s3.$(AWS_REGION).amazonaws.com
-OIDC_PROVIDER_ARN := arn:aws:iam::$(AWS_ACCOUNT_ID):oidc-provider/$(SPIRE_TRUST_DOMAIN)
-BUCKET_POLICY_ARN := arn:aws:iam::$(AWS_ACCOUNT_ID):policy/spire-target-s3-policy
-AWS_ROLE_ARN := arn:aws:iam::$(AWS_ACCOUNT_ID):role/spire-target-s3-role
-OPA_BUCKET_POLICY_ARN := arn:aws:iam::$(AWS_ACCOUNT_ID):policy/spire-opa-s3-policy
-OPA_POLICY_FETCH_ROLE_ARN := arn:aws:iam::$(AWS_ACCOUNT_ID):role/fetch-opa-policy-role
-
-WATCHER_IMAGE_NAME := $(shell uuidgen)
-JWT_FETCH_IMAGE_NAME := $(shell uuidgen)
 
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/')
-
+SPIRE_TRUST_DOMAIN := $(OIDC_BUCKET_NAME).s3.$(AWS_REGION).amazonaws.com
 THUMBPRINT := $(shell openssl s_client -connect $(SPIRE_TRUST_DOMAIN):443 < /dev/null 2>/dev/null | openssl x509 -fingerprint -noout -in /dev/stdin | cut -d "=" -f2 | sed 's/://g')
-
-.EXPORT_ALL_VARIABLES:
 
 ##@ General
 
 help: ## Display this help.
 	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
+##@ AWS
+
+create-resources: terraform
+	cd aws && $(TERRAFORM) apply \
+		-var aws_region=$(AWS_REGION) \
+		-var target_bucket_name=$(S3_TARGET_BUCKET_NAME) \
+		-var oidc_bucket_name=$(OIDC_BUCKET_NAME) \
+		-var opa_policy_bucket_name=$(OPA_POLICY_BUCKET_NAME) \
+		-var thumbprint=$(THUMBPRINT) \
+		-auto-approve
+
+delete-resources: terraform
+	cd aws && $(TERRAFORM) apply -auto-approve -destroy
+
 ##@ Kind
 
 .PHONY: create-cluster
 create-cluster: kind delete-cluster ## Create the kind cluster
-	$(KIND) create cluster --name $(NAME) --config kind/kind-cluster.yaml
+	$(KIND) create cluster --name $(NAME) --config kind.yaml
 
 .PHONY: delete-cluster
 delete-cluster: kind ## Delete the kind cluster
-	$(KIND) delete cluster --name $(NAME)
+	-$(KIND) delete cluster --name $(NAME)
+
+##@ Spire
+
+.PHONY: spire-up
+spire-up: spire-crds spire-deploy
+
+.PHONY: spire-crds
+spire-crds: ## Apply the spire crds
+	kubectl apply -f spire/config/crds
+
+.PHONY: spire-deploy
+spire-deploy: ## Deploy the spire cluster
+	kubectl label namespace default example=true
+	-kubectl create ns spire
+	kubectl apply -f spire/config
+
+.PHONY: spire-agent-wait-for
+spire-agent-wait-for: ## Wait for the spire agent to be ready
+	kubectl wait pods -n spire -l app=spire-agent --for condition=Ready --timeout=120s
+
+spire-registrations: ## Show spire registrations
+	kubectl exec -n spire -c spire-server spire-server-0 -- \
+		/opt/spire/bin/spire-server entry show -socketPath /run/spire/sockets/api.sock
+
+spire-cleanup: ## Delete the spire cluster and remove the templated configuration files
+	kubectl delete ns spire
+	./spire/cleanup.sh
+
+##@ Kyverno
+
+.PHONY: kyverno-deploy
+kyverno-deploy: kind ## Deploy kyverno
+	$(HELM) repo add kyverno https://kyverno.github.io/kyverno/
+	$(HELM) repo update
+	-$(HELM) install kyverno kyverno/kyverno -n kyverno --create-namespace --set replicaCount=1
+
+##@ Istio
+
+.PHONY: istio-deploy
+istio-deploy: istio  ## Deploy istio
+	$(ISTIOCTL) install --skip-confirmation -f istio/istio-operator.yaml
+
+istio-opa-deploy:
+	kubectl label namespace default istio-injection=enabled
+	kubectl apply -f istio/config
+
+##@ OIDC
+
+oidc-get-jwks: workload-deploy-jwks-retriever workload-wait-for-jwks-retriever ## Retrieve the jwks
+	$(MAKE) -C jwks-retriever get-jwks
+
+oidc-upload:  ## Configure the oidc discovery provider in aws
+	aws s3 cp oidc/keys s3://$(OIDC_BUCKET_NAME)/keys
+	aws s3api put-object-acl --bucket $(OIDC_BUCKET_NAME) --key keys --acl public-read
+	aws s3 cp oidc/openid-configuration s3://$(OIDC_BUCKET_NAME)/.well-known/openid-configuration
+	aws s3api put-object-acl --bucket $(OIDC_BUCKET_NAME) --key .well-known/openid-configuration --acl public-read
+
+##@ Example One
+
+example-one-deploy: workload-deploy-s3-consumer ## Deploy workload for example one
+
+example-one-logs:
+	kubectl logs -l app=s3-consumer
+
+##@ Example Two
+
+example-two-opa-publish:
+	opa build --bundle ./opa -o bundle.tar.gz
+	aws s3 cp bundle.tar.gz s3://$(OPA_POLICY_BUCKET_NAME)/bundle.tar.gz
+
+example-two-deploy:
+	$(MAKE) -C spiffe-jwt-watcher build load
+	$(MAKE) -C workload-1 apply
+	$(MAKE) -C workload-2 apply
+
+.PHONY: check-istio-certs
+check-istio-certs:
+	./scripts/check-istio-certs.sh
+
+/PHONY: send-example-requests
+send-example-requests:
+	./scripts/send-requests.sh
+
+##@ Workloads
+
+workload-spiffe-config: ## Create configmap with spiffe config for workloads
+	-kubectl create configmap spiffe-config \
+		--from-literal=SPIFFE_ENDPOINT_SOCKET=unix:///spire-agent-socket/socket \
+		--from-literal=TRUST_DOMAIN=$(SPIRE_TRUST_DOMAIN)
+
+workload-deploy-%: workload-spiffe-config ## Build load and apply the workload
+	$(MAKE) -C $* build load apply
+
+workload-wait-for-%:
+	kubectl wait pods -l app=$* --for condition=Ready --timeout=120s
+
+workload-delete-%:
+	$(MAKE) -C $* delete
+
+workload-clean-%:
+	$(MAKE) -C $* clean
+
+##@ Tools
 
 .PHONY: kind
 KIND = $(shell pwd)/bin/kind
 kind: ## Download kind if required
 ifeq (,$(wildcard $(KIND)))
 ifeq (,$(shell which kind 2> /dev/null))
-	echo Downloading Kind
 	@{ \
 		mkdir -p $(dir $(KIND)); \
 		curl -sSLo $(KIND) https://kind.sigs.k8s.io/dl/$(KIND_VERSION)/kind-$(OS)-$(ARCH); \
@@ -60,169 +161,53 @@ KIND = $(shell which kind)
 endif
 endif
 
-##@ AWS
+.PHONY: istioctl
+ISTIOCTL = $(shell pwd)/bin/istioctl
+istioctl: ## Download istioctl if required
+ifeq (,$(wildcard $(ISTIOCTL)))
+ifeq (,$(shell which istioctl 2> /dev/null))
+	@{ \
+		mkdir -p $(dir $(ISTIOCTL)); \
+		curl -sSLo $(dir $(ISTIOCTL))/istio.tar.gz https://github.com/istio/istio/releases/download/$(ISTIO_VERSION)/istio-$(ISTIO_VERSION)-$(OS)-$(ARCH).tar.gz; \
+		tar -xzf $(dir $(ISTIOCTL))/istio.tar.gz ;\
+		mv istio-$(ISTIO_VERSION)/bin/istioctl $(dir $(ISTIOCTL)); \
+		rm -rf istio-$(ISTIO_VERSION) $(dir $(ISTIOCTL))/istio.tar.gz; \
+		chmod + $(ISTIOCTL); \
+	}
+else
+ISTIOCTL = $(shell which istioctl)
+endif
+endif
 
-.PHONY: create-target-bucket
-create-target-bucket:
-	aws s3api create-bucket \
-		--bucket $(S3_TARGET_BUCKET_NAME) \
-		--region $(AWS_REGION) \
-		--create-bucket-configuration LocationConstraint=$(AWS_REGION)
-	aws s3 cp aws-resources/test.txt s3://$(S3_TARGET_BUCKET_NAME)/test.txt
+.PHONY: helm
+HELM = $(shell pwd)/bin/helm
+helm: ## Download helm if required
+ifeq (,$(wildcard $(HELM)))
+ifeq (,$(shell which helm 2> /dev/null))
+	@{ \
+		mkdir -p $(dir $(HELM)); \
+		curl -sSLo $(HELM).tar.gz https://get.helm.sh/helm-v$(HELM_VERSION)-$(OS)-$(ARCH).tar.gz; \
+		tar -xzf $(HELM).tar.gz --one-top-level=$(dir $(HELM)) --strip-components=1; \
+		chmod + $(HELM); \
+	}
+else
+HELM = $(shell which helm)
+endif
+endif
 
-.PHONY: create-oidc-bucket
-create-oidc-bucket:
-	aws s3api create-bucket \
-		--bucket $(OIDC_BUCKET_NAME) \
-		--region $(AWS_REGION) \
-		--acl public-read \
-		--create-bucket-configuration LocationConstraint=$(AWS_REGION)
-
-.PHONY: create-opa-policy-bucket
-create-opa-policy-bucket:
-	aws s3api create-bucket --bucket $(OPA_POLICY_BUCKET_NAME) --create-bucket-configuration LocationConstraint=eu-west-2
-	aws s3api put-public-access-block \
-		--bucket $(OPA_POLICY_BUCKET_NAME) \
-		--public-access-block-configuration "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
-
-.PHONY: create-iam-policy
-create-iam-policy:
-	envsubst < aws-resources/iam/read-target-bucket-policy.json > aws-resources/iam/applied-target-bucket-policy.json
-	aws iam create-policy --policy-name spire-target-s3-policy --policy-document file://./aws-resources/iam/applied-target-bucket-policy.json
-	rm aws-resources/iam/applied-target-bucket-policy.json
-
-.PHONY: create-opa-s3-iam-policy
-create-opa-s3-iam-policy:
-	envsubst < aws-resources/iam/opa-bucket-policy.json > aws-resources/iam/applied-opa-bucket-policy.json
-	aws iam create-policy --policy-name spire-opa-s3-policy --policy-document file://./aws-resources/iam/applied-opa-bucket-policy.json
-	rm aws-resources/iam/applied-opa-bucket-policy.json
-
-.PHONY: create-federated-role
-create-federated-role:
-	envsubst < aws-resources/iam/trust-policy.json > aws-resources/iam/applied-trust-policy.json
-	aws iam create-role --role-name spire-target-s3-role --assume-role-policy-document file://./aws-resources/iam/applied-trust-policy.json
-	rm aws-resources/iam/applied-trust-policy.json
-
-.PHONY: attach-policy
-attach-policy:
-	aws iam attach-role-policy --role-name spire-target-s3-role --policy-arn $(BUCKET_POLICY_ARN)
-
-.PHONY: create-open-id-connect-provider
-create-open-id-connect-provider:
-	aws iam create-open-id-connect-provider\
-		--url https://$(SPIRE_TRUST_DOMAIN) \
-		--thumbprint-list $(THUMBPRINT) \
-		--client-id-list spire-test-s3
-
-##@ Spire
-
-.PHONY: install-spire
-install-spire: ## Install spire into kind cluster
-	kubectl label namespace default example=true
-	kubectl apply -f kind/manifests/spire/spire-namespace.yaml
-	kubectl apply -f kind/manifests/spire/crds.yaml
-	envsubst < kind/manifests/spire/template-spire-controller-manager-config.yaml > kind/manifests/spire/spire-controller-manager-config.yaml
-	kubectl create configmap spire-controller-manager-config -n spire --from-file=kind/manifests/spire/spire-controller-manager-config.yaml
-	rm kind/manifests/spire/spire-controller-manager-config.yaml
-	kubectl apply -f kind/manifests/spire/spiffe-csi-driver.yaml
-	kubectl apply -f kind/manifests/spire/spire-controller-manager-webhook.yaml
-	envsubst < kind/manifests/spire/spire-server.yaml | kubectl apply -f -
-	envsubst < kind/manifests/spire/spire-agent.yaml | kubectl apply -f -
-
-.PHONY: create-cluster-spiffeid
-create-cluster-spiffeid:
-	envsubst < kind/manifests/spiffe-ids/cluster-spiffe-id.yaml | kubectl apply -f -
-
-.PHONY: show-workload-registrations
-show-workload-registrations:
-	./scripts/show-spire-entries.sh
-
-.PHONY: create-watcher
-create-watcher:
-	docker build -t watcher ./golang-watcher
-	$(KIND) load docker-image watcher --name $(NAME)
-	kubectl apply -f kind/manifests/watcher.yaml
-
-.PHONY: get-keys
-get-keys:
-	./scripts/get-keys.sh
-
-.PHONY: openid-config-upload
-openid-config-upload:
-	aws s3 cp aws-resources/keys s3://$(OIDC_BUCKET_NAME)/keys
-	aws s3api put-object-acl --bucket $(OIDC_BUCKET_NAME) --key keys --acl public-read
-	envsubst < aws-resources/openid-configuration > aws-resources/applied-openid-configuration
-	aws s3 cp aws-resources/applied-openid-configuration s3://$(OIDC_BUCKET_NAME)/.well-known/openid-configuration
-	rm aws-resources/applied-openid-configuration
-	aws s3api put-object-acl --bucket $(OIDC_BUCKET_NAME) --key .well-known/openid-configuration --acl public-read
-
-.PHONY: deploy-aws-cli-pod
-deploy-aws-cli-pod:
-	docker build -t jwt-fetch ./spiffe-jwt-watcher
-	$(KIND) load docker-image jwt-fetch --name $(NAME)
-	kubectl apply -f kind/manifests/aws-cli.yaml
-
-.PHONY: fetch-from-bucket
-fetch-from-bucket:
-	./scripts/fetch-from-bucket.sh
-
-.PHONY: teardown-aws-resources
-teardown-aws-resources:
-	-aws s3 rm s3://$(S3_TARGET_BUCKET_NAME) --recursive
-	-aws s3 rb s3://$(S3_TARGET_BUCKET_NAME)
-	-aws s3 rm s3://$(OIDC_BUCKET_NAME) --recursive
-	-aws s3 rb s3://$(OIDC_BUCKET_NAME)
-	-aws iam detach-role-policy --role-name spire-target-s3-role --policy-arn $(BUCKET_POLICY_ARN)
-	-aws iam delete-role --role-name spire-target-s3-role
-	-aws iam delete-policy --policy-arn $(BUCKET_POLICY_ARN)
-	-aws iam detach-role-policy --role-name fetch-opa-policy-role --policy-arn $(OPA_BUCKET_POLICY_ARN)
-	-aws iam delete-role --role-name fetch-opa-policy-role
-	-aws iam delete-policy --policy-arn $(OPA_BUCKET_POLICY_ARN)
-	-aws iam delete-open-id-connect-provider --open-id-connect-provider-arn $(OIDC_PROVIDER_ARN)
-	-aws s3 rm s3://$(OPA_POLICY_BUCKET_NAME) --recursive
-	-aws s3 rb s3://$(OPA_POLICY_BUCKET_NAME)
-
-.PHONY: push-policy-bundle
-push-policy-bundle:
-	mkdir applied-policy
-	envsubst < policy/example.rego > applied-policy/example.rego
-	opa build --bundle ./applied-policy -o bundle.tar.gz
-	rm -rf applied-policy
-	aws s3 cp bundle.tar.gz s3://$(OPA_POLICY_BUCKET_NAME)/bundle.tar.gz
-
-.PHONY: create-opa-role
-create-opa-role:
-	envsubst < aws-resources/iam/opa-trust-policy.json > aws-resources/iam/applied-opa-trust-policy.json
-	aws iam create-role --role-name fetch-opa-policy-role --assume-role-policy-document file://./aws-resources/iam/applied-opa-trust-policy.json
-	rm aws-resources/iam/applied-opa-trust-policy.json
-
-.PHONY: attach-opa-bucket-policy
-attach-opa-bucket-policy:
-	aws iam attach-role-policy --role-name fetch-opa-policy-role --policy-arn $(OPA_BUCKET_POLICY_ARN)
-
-.PHONY: install-istio
-install-istio:
-	envsubst < opa-istio/istio-operator.yaml > opa-istio/applied-istio-operator.yaml
-	istioctl install --skip-confirmation -f opa-istio/applied-istio-operator.yaml
-	rm opa-istio/applied-istio-operator.yaml
-
-.PHONY: opa-istio-resources
-opa-istio-resources:
-	envsubst < opa-istio/opa-injection.yaml | kubectl apply -f -
-	kubectl apply -f opa-istio/serviceentry.yaml
-	kubectl apply -f opa-istio/authz-policy.yaml
-	kubectl apply -f opa-istio/authz-policy-2.yaml
-	envsubst < opa-istio/opa-istio-configmap.yaml | kubectl apply -f -
-
-.PHONY: deploy-example-workloads
-deploy-example-workloads:
-	kubectl apply -f kind/manifests/workload-1
-	kubectl apply -f kind/manifests/workload-2
-
-.PHONY: check-istio-certs
-check-istio-certs:
-	./scripts/check-istio-certs.sh
-
-/PHONY: send-example-requests
-send-example-requests:
-	./scripts/send-requests.sh
+.PHONY: terraform
+TERRAFORM = $(shell pwd)/bin/terraform
+terraform: ## Download terraform if required
+ifeq (,$(wildcard $(TERRAFORM)))
+ifeq (,$(shell which terraform 2> /dev/null))
+	@{ \
+		mkdir -p $(dir $(TERRAFORM)); \
+		curl -sSLo $(TERRAFORM).tar.gz https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_$(OS)_$(ARCH).zip; \
+		unzip $(TERRAFORM).tar.gz; \
+		mv terraform $(dir $(TERRAFORM)); \
+		chmod + $(TERRAFORM); \
+	}
+else
+TERRAFORM = $(shell which terraform)
+endif
+endif

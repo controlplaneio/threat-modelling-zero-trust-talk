@@ -1,3 +1,0 @@
-bin/
-.terraform/
-terraform.tfstate*
