@@ -1,1 +1,2 @@
 istio-operator.yaml
+!templates/istio-operator.yaml

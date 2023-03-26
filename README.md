@@ -9,7 +9,8 @@ export AWS_SESSION_TOKEN=xxx
 ## Infra Up
 
 ```shell
-make create-cluster image-build-load-jwks-retriever image-build-load-s3-consumer image-build-load-spiffe-jwt-watcher
+make create-cluster image-build-load-jwks-retriever image-build-load-s3-consumer \
+  image-build-load-spiffe-jwt-watcher image-build-load-opa-istio-kms
 make spire-deploy
 ```
 
