@@ -23,11 +23,12 @@ spec:
             spec:
               containers:
               - name: opa-istio
-                image: openpolicyagent/opa:latest-istio
+                image: opa-istio-kms
                 imagePullPolicy: IfNotPresent
                 args: [
                   "run",
                   "--server",
+                  "--bundle",
                   "--config-file=/config/config.yaml",
                   "--addr=localhost:8181"
                 ]

@@ -21,7 +21,7 @@ var (
 		"RS512": kmsTypes.SigningAlgorithmSpecRsassaPkcs1V15Sha512,
 		"ES256": kmsTypes.SigningAlgorithmSpecEcdsaSha256,
 		"ES384": kmsTypes.SigningAlgorithmSpecEcdsaSha384,
-		"ES512": kmsTypes.SigningAlgorithmSpecEcdsaSha256,
+		"ES512": kmsTypes.SigningAlgorithmSpecEcdsaSha512,
 	}
 )
 

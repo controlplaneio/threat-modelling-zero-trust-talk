@@ -8,6 +8,11 @@ resource "aws_iam_role_policy_attachment" "opa_bucket_access" {
   policy_arn = aws_iam_policy.opa_policy_access.arn
 }
 
+resource "aws_iam_role_policy_attachment" "kms_verifier" {
+  role       = aws_iam_role.opa.id
+  policy_arn = aws_iam_policy.verify.arn
+}
+
 data "aws_iam_openid_connect_provider" "spire" {
   url = "https://${local.spire_trust_domain}"
 }

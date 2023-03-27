@@ -77,15 +77,29 @@ example-one-logs:
 ##@ Example Two
 
 example-two-opa-publish: example-two-clean
-	opa build --bundle ./opa -o bundle.tar.gz
+	$(MAKE) -C opa-istio-kms build-cmd
+	./opa-istio-kms/bin/opa-istio build --bundle ./opa -o bundle.tar.gz \
+		--signing-key alias/opa-ecc \
+		--signing-alg ES512 \
+		--signing-plugin aws-kms
 	aws s3 cp bundle.tar.gz s3://$(OPA_POLICY_BUCKET_NAME)/bundle.tar.gz
+
+example-two-validate-signature:
+	./opa-istio-kms/bin/opa-istio run --bundle \
+  --verification-key alias/opa-ecc \
+  --verification-key-id aws-kms \
+  ./bundle.tar.gz
 
 example-two-deploy:
 	$(MAKE) -C workload-1 apply
 	$(MAKE) -C workload-2 apply
 
+example-two-delete:
+	$(MAKE) -C workload-1 delete
+	$(MAKE) -C workload-2 delete
+
 example-two-clean:
-	rm bundle.tar.gz
+	-rm bundle.tar.gz
 
 .PHONY: check-istio-certs
 check-istio-certs:

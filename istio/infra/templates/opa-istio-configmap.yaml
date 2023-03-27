@@ -15,6 +15,11 @@ data:
       policy:
         service: s3
         resource: bundle.tar.gz
+        signing:
+          keyid: aws-kms
+    keys:
+      aws-kms:
+        key: aws-kms
     plugins:
       envoy_ext_authz_grpc:
         addr: :9191

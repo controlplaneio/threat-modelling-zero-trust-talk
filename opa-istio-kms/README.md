@@ -3,11 +3,12 @@
 ```shell
 go build -o bin/opa-istio ./cmd/opa/
 
-export SIGNING_KEY_ARN=xxx 
+export SIGNING_KEY_ARN=alias/opa-ecc 
 
 ./bin/opa-istio build --bundle ./policy \
   --output ./policy/bundle.tar.gz \
   --signing-key $SIGNING_KEY_ARN \
+  --signing-alg ES512 \
   --signing-plugin aws-kms
   
 tar xzf policy/bundle.tar.gz /.signatures.json
@@ -16,6 +17,12 @@ tar xzf policy/bundle.tar.gz /.signatures.json
   --verification-key $SIGNING_KEY_ARN \
   --verification-key-id aws-kms \
   ./policy/bundle.tar.gz
+  
+  
+./bin/opa-istio run --bundle --server \
+  --verification-key $SIGNING_KEY_ARN \
+  --verification-key-id aws-kms \
+  ./policy/bundle.tar.gz 
 ```
 
 ```shell
