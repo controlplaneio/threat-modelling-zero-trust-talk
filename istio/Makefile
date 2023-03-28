@@ -24,7 +24,11 @@ terraform-apply:
 
 .PHONY: terraform-destroy
 terraform-destroy:
-	cd infra && $(TERRAFORM) apply -auto-approve -destroy
+	cd infra && $(TERRAFORM) apply \
+	-var aws_region=$(AWS_REGION) \
+	-var oidc_bucket_name=$(OIDC_BUCKET_NAME) \
+	-var opa_policy_bucket_name=$(OPA_POLICY_BUCKET_NAME) \
+	-auto-approve -destroy
 
 .PHONY: install
 install:
