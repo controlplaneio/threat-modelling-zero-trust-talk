@@ -5,9 +5,9 @@ HELM_VERSION ?= 3.11.2
 TERRAFORM_VERSION ?= 1.4.2
 
 AWS_REGION ?= eu-west-2
-S3_TARGET_BUCKET_NAME ?= spire-target-bucket
-OIDC_BUCKET_NAME ?= spire-oidc-bucket
-OPA_POLICY_BUCKET_NAME ?= spire-opa-policy-bucket
+S3_TARGET_BUCKET_NAME ?= $(NAME)-target
+OIDC_BUCKET_NAME ?= $(NAME)-oidc
+OPA_POLICY_BUCKET_NAME ?= $(NAME)-opa-policy
 
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/')
@@ -22,12 +22,12 @@ help: ## Display this help.
 
 ##@ Kind
 
-.PHONY: create-cluster
-create-cluster: kind delete-cluster ## Create the kind cluster
+.PHONY: cluster-up
+cluster-up: kind ## Create the kind cluster
 	$(KIND) create cluster --name $(NAME) --config kind.yaml
 
-.PHONY: delete-cluster
-delete-cluster: kind ## Delete the kind cluster
+.PHONY: cluster-down
+cluster-down: kind ## Delete the kind cluster
 	-$(KIND) delete cluster --name $(NAME)
 
 ##@ Spire
