@@ -21,7 +21,7 @@ export AWS_SESSION_TOKEN=xxx
 
 ## Infra Up
 
-1. Create a Kind cluster
+1. Create a Kind cluster and preload third party images
 2. Build and load the various images
 3. Deploy SPIRE with OIDC Discovery exposed using an S3 Bucket (don't do this in production)
 
@@ -30,7 +30,7 @@ export AWS_SESSION_TOKEN=xxx
 * Load the Discovery document and the JWKS to S3
 
 ```shell
-make cluster-up
+make cluster-up cluster-preload-images
 make image-build-load-jwks-retriever image-build-load-s3-consumer image-build-load-spiffe-jwt-watcher \
   image-build-load-opa-istio-kms
 make spire-deploy

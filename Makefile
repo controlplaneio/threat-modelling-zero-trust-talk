@@ -3,6 +3,8 @@ KIND_VERSION ?= v0.17.0
 ISTIO_VERSION ?= 1.17.1
 HELM_VERSION ?= 3.11.2
 TERRAFORM_VERSION ?= 1.4.2
+SPIRE_VERSION ?= 1.5.3
+KYVERNO_VERSION ?= 1.9.2
 
 AWS_REGION ?= eu-west-2
 S3_TARGET_BUCKET_NAME ?= $(NAME)-target
@@ -29,6 +31,10 @@ cluster-up: kind ## Create the kind cluster
 .PHONY: cluster-down
 cluster-down: kind ## Delete the kind cluster
 	-$(KIND) delete cluster --name $(NAME)
+
+.PHONY: cluster-preload-images
+cluster-preload-images: kind ## Preload the external images required for the demo
+	./scripts/preload-images.sh
 
 ##@ Spire
 
