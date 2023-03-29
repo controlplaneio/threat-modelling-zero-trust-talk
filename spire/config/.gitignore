@@ -1,5 +1,5 @@
 jwks-retriever.yaml
-spire-agent.yaml
+spire-agent-config.yaml
 spire-cluster-spiffeid.yaml
 spire-controller-manager-config.yaml
-spire-server.yaml
+spire-server-config.yaml

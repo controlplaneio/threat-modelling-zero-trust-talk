@@ -18,7 +18,7 @@ ARCH := $(shell uname -m | sed 's/x86_64/amd64/')
 ##@ General
 
 help: ## Display this help.
-	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*##"; printf "\nUsage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-30s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
 
 ##@ Kind
 
@@ -33,13 +33,14 @@ cluster-down: kind ## Delete the kind cluster
 ##@ Spire
 
 .PHONY: spire-deploy
-spire-deploy:
+spire-deploy: ## Create required infrastructure and deploy SPIRE
 	$(MAKE) -C spire deploy
 
 .PHONY: spire-clean
-spire-clean:
+spire-clean: ## Clean up SPIRE it's infrastructure
 	$(MAKE) -C spire clean
 
+.PHONY: spire-registrations
 spire-registrations: ## Show spire registrations
 	kubectl exec -n spire -c spire-server spire-server-0 -- \
 		/opt/spire/bin/spire-server entry show -socketPath /run/spire/sockets/api.sock
@@ -47,7 +48,7 @@ spire-registrations: ## Show spire registrations
 ##@ Kyverno
 
 .PHONY: kyverno-deploy
-kyverno-deploy: kind ## Deploy kyverno
+kyverno-deploy: helm ## Deploy kyverno
 	$(HELM) repo add kyverno https://kyverno.github.io/kyverno/
 	$(HELM) repo update
 	-$(HELM) install kyverno kyverno/kyverno -n kyverno --create-namespace --set replicaCount=1
@@ -55,28 +56,31 @@ kyverno-deploy: kind ## Deploy kyverno
 ##@ Istio
 
 .PHONY: istio-deploy
-istio-deploy: istio  ## Deploy istio
+istio-deploy: istio ## Create required infrastructure and deploy Istio
 	$(MAKE) -C istio deploy
 
-istio-clean:
+.PHONY: istio-clean
+istio-clean: ## Clean up Infra it's infrastructure
 	$(MAKE) -C istio clean
 
 ##@ Example One
 
 .PHONY: example-one-deploy
-example-one-deploy:
+example-one-deploy: ## Deploy the S3 consumer application
 	$(MAKE) -C s3-consumer deploy
 
 .PHONY: example-one-clean
-example-one-clean:
+example-one-clean: ## Delete the S3 consumer application
 	$(MAKE) -C s3-consumer clean
 
-example-one-logs:
+.PHONY: example-one-logs
+example-one-logs: ## Show the logs from the S3 consumer application
 	kubectl logs -l app=s3-consumer
 
 ##@ Example Two
 
-example-two-opa-publish: example-two-clean
+.PHONY: example-two-opa-publish
+example-two-opa-publish: example-two-opa-clean ## Sign and publish OPA bundle
 	$(MAKE) -C opa-istio-kms build-cmd
 	./opa-istio-kms/bin/opa-istio build --bundle ./opa -o bundle.tar.gz \
 		--signing-key alias/opa-ecc \
@@ -84,29 +88,33 @@ example-two-opa-publish: example-two-clean
 		--signing-plugin aws-kms
 	aws s3 cp bundle.tar.gz s3://$(OPA_POLICY_BUCKET_NAME)/bundle.tar.gz
 
-example-two-validate-signature:
+.PHONY: example-two-opa-clean ## Delete OPA bundle
+example-two-opa-clean:
+	-rm bundle.tar.gz
+
+.PHONY: example-two-validate-signature
+example-two-validate-signature: ## Validate OPA bundle signature
 	./opa-istio-kms/bin/opa-istio run --bundle \
   --verification-key alias/opa-ecc \
   --verification-key-id aws-kms \
   ./bundle.tar.gz
 
-example-two-deploy:
+.PHONY: example-two-deploy
+example-two-deploy: ## Deploy workloads for Istio and OPA example
 	$(MAKE) -C workload-1 apply
 	$(MAKE) -C workload-2 apply
 
-example-two-delete:
+.PHONY: example-two-delete
+example-two-delete: ## Delete workloads for Istio and OPA example
 	$(MAKE) -C workload-1 delete
 	$(MAKE) -C workload-2 delete
 
-example-two-clean:
-	-rm bundle.tar.gz
-
-.PHONY: check-istio-certs
-check-istio-certs:
+.PHONY: example-two-check-istio-certs
+example-two-check-istio-certs: ## Show Istio issued certificates
 	./scripts/check-istio-certs.sh
 
-/PHONY: send-example-requests
-send-example-requests:
+/PHONY: example-two-send-requests
+example-two-send-requests: ## Send requests and show OPA decisions
 	./scripts/send-requests.sh
 
 ##@ Images

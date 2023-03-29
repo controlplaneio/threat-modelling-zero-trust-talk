@@ -11,7 +11,6 @@ Two demonstrations are included:
 OPA policy bundles are downloaded from an S3 bucket using the technique shown in Demo 1. Istio is integrated with SPIRE, 
 and Rego traffic authorisation policies are based on X.509 SVIDs provided to our workloads via SPIRE.
 
-
 ## Prereqs
 
 ```shell
@@ -26,7 +25,9 @@ export AWS_SESSION_TOKEN=xxx
 2. Build and load the various images
 3. Deploy SPIRE with OIDC Discovery exposed using an S3 Bucket (don't do this in production)
 
-
+* OIDC Bucket
+* JWKS Retriever
+* Load the Discovery document and the JWKS to S3
 
 ```shell
 make cluster-up
@@ -40,6 +41,10 @@ make spire-deploy
 1. Deploy the s3-consumer application
 2. View the logs to see what it's retrieved from S3
 3. Cleanup
+
+* Target S3 Bucket and access policy
+* Manual ID Federation
+* Access logs
 
 ```shell
 make example-one-deploy
@@ -55,11 +60,18 @@ make example-one-clean
 4. Check the communication uses Istio's External Authorisation (and spell it properly)
 5. Cleanup
 
+* S3 Bucket & KMS Keys for signing and verificatio, IAM Role and Federation
+* Templated SPIRE trust domain
+* Kyverno injection with auto magic Federation
+* OPA Istio sidecar bundle download and verification
+* OPA Policy
+* JWT Watcher
+
 ```shell
 make kyverno-deploy istio-deploy
 make example-two-opa-publish example-two-deploy
-make check-istio-certs 
-make send-example-requests
+make example-two-check-istio-certs
+make example-two-send-requests
 make example-two-delete istio-clean
 ```
 

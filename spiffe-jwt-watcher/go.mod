@@ -1,6 +1,6 @@
 module example/spiffe-jwt-watcher
 
-go 1.20
+go 1.19
 
 require github.com/spiffe/go-spiffe/v2 v2.1.2
 

@@ -1,22 +1,22 @@
-resource "local_file" "spire_server" {
-  filename = "${path.module}/../config/spire-server.yaml"
-  content  = data.template_file.spire_server.rendered
+resource "local_file" "spire_server_config" {
+  filename = "${path.module}/../config/spire-server-config.yaml"
+  content  = data.template_file.spire_server_config.rendered
 }
 
-data "template_file" "spire_server" {
-  template = file("${path.module}/templates/spire-server.yaml")
+data "template_file" "spire_server_config" {
+  template = file("${path.module}/templates/spire-server-config.yaml")
   vars = {
     spire_trust_domain = local.spire_trust_domain
   }
 }
 
-resource "local_file" "spire_agent" {
-  filename = "${path.module}/../config/spire-agent.yaml"
-  content  = data.template_file.spire_agent.rendered
+resource "local_file" "spire_agent_config" {
+  filename = "${path.module}/../config/spire-agent-config.yaml"
+  content  = data.template_file.spire_agent_config.rendered
 }
 
-data "template_file" "spire_agent" {
-  template = file("${path.module}/templates/spire-agent.yaml")
+data "template_file" "spire_agent_config" {
+  template = file("${path.module}/templates/spire-agent-config.yaml")
   vars = {
     spire_trust_domain = local.spire_trust_domain
   }
