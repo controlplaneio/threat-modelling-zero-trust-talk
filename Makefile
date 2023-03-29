@@ -112,7 +112,7 @@ example-two-deploy: ## Deploy workloads for Istio and OPA example
 	$(MAKE) -C workload-2 apply
 
 .PHONY: example-two-delete
-example-two-delete: ## Delete workloads for Istio and OPA example
+example-two-delete: example-two-opa-clean ## Delete workloads for Istio and OPA example
 	$(MAKE) -C workload-1 delete
 	$(MAKE) -C workload-2 delete
 
