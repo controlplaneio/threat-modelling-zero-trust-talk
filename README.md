@@ -25,10 +25,6 @@ export AWS_SESSION_TOKEN=xxx
 2. Build and load the various images
 3. Deploy SPIRE with OIDC Discovery exposed using an S3 Bucket (don't do this in production)
 
-* OIDC Bucket
-* JWKS Retriever
-* Load the Discovery document and the JWKS to S3
-
 ```shell
 make cluster-up cluster-preload-images
 make image-build-load-jwks-retriever image-build-load-s3-consumer image-build-load-spiffe-jwt-watcher \
@@ -36,21 +32,30 @@ make image-build-load-jwks-retriever image-build-load-s3-consumer image-build-lo
 make spire-deploy
 ```
 
+* [SPIRE OIDC Bucket](spire/infra/oidc-bucket.tf)
+* [SPIRE OIDC Provider](spire/infra/oidc-provider.tf)
+* [Templated configuration files](spire/infra/templates)
+* [JWKS Retriever](jwks-retriever/main.go)
+* [Discovery Document](spire/oidc/openid-configuration)
+* [JWKS](spire/oidc/keys)
+* Load the Discovery document and the JWKS to S3
+
 ## Example One
 
 1. Deploy the s3-consumer application
 2. View the logs to see what it's retrieved from S3
 3. Cleanup
 
-* Target S3 Bucket and access policy
-* Manual ID Federation
-* Access logs
-
 ```shell
 make example-one-deploy
 make example-one-logs
 make example-one-clean
 ```
+
+* [Target Bucket](s3-consumer/infra/target-bucket.tf) and access policy
+* [Federated Role](s3-consumer/infra/target-bucket-federated-role.tf)
+* [S3 Consumer](s3-consumer/main.go) manually exchanging the SPIRE JWT SVID for temporary AWS Credentials
+* View the application logs
 
 ## Example Two
 
@@ -60,13 +65,6 @@ make example-one-clean
 4. Check the communication uses Istio's External Authorisation (and spell it properly)
 5. Cleanup
 
-* S3 Bucket & KMS Keys for signing and verificatio, IAM Role and Federation
-* Templated SPIRE trust domain
-* Kyverno injection with auto magic Federation
-* OPA Istio sidecar bundle download and verification
-* OPA Policy
-* JWT Watcher
-
 ```shell
 make kyverno-deploy istio-deploy
 make example-two-opa-publish example-two-deploy
@@ -74,6 +72,16 @@ make example-two-check-istio-certs
 make example-two-send-requests
 make example-two-delete istio-clean
 ```
+
+* [OPA Policy Bucket](istio/infra/opa-policy-bucket.tf)
+* [OPA Bundle Signing Keys](istio/infra/opa-signing-keys.tf)
+* [OPA Role](istio/infra/opa-role.tf)
+* [Templated configuration files](istio/infra/templates)
+  * Istio Operator configuration
+  * Kyverno policy to inject configured OPA sidecar
+  * Istio configuration for loading and verifying the bundles from S3 using KMS and automagic AWS credentials
+* [OPA Policy](opa/example.rego) from template
+* [JWT Watcher](spiffe-jwt-watcher/main.go)
 
 ## Infra Down
 
