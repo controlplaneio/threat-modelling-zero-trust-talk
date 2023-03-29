@@ -14,7 +14,7 @@ resource "aws_iam_role_policy_attachment" "kms_verifier" {
 }
 
 data "aws_iam_openid_connect_provider" "spire" {
-  url = "https://${local.spire_trust_domain}"
+  url = "https://${local.spire_issuer}"
 }
 
 data "aws_iam_policy_document" "opa_assume_role_policy" {
@@ -31,16 +31,16 @@ data "aws_iam_policy_document" "opa_assume_role_policy" {
     ]
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:aud"
+      variable = "${local.spire_issuer}:aud"
       values = [
         var.audience,
       ]
     }
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:sub"
+      variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${local.spire_trust_domain}/ns/default/sa/${var.workload_one_sa}",
+        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.workload_one_sa}",
       ]
     }
   }
@@ -57,16 +57,16 @@ data "aws_iam_policy_document" "opa_assume_role_policy" {
     ]
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:aud"
+      variable = "${local.spire_issuer}:aud"
       values = [
         var.audience,
       ]
     }
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:sub"
+      variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${local.spire_trust_domain}/ns/default/sa/${var.workload_two_sa}",
+        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.workload_two_sa}",
       ]
     }
   }

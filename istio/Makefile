@@ -1,4 +1,5 @@
 AWS_REGION ?= eu-west-2
+SPIRE_TRUST_DOMAIN ?= controlplane.io
 OIDC_BUCKET_NAME ?= spire-oidc-bucket
 OPA_POLICY_BUCKET_NAME ?= spire-opa-policy-bucket
 
@@ -13,6 +14,7 @@ terraform-apply:
 	cd infra && \
 		$(TERRAFORM) init && \
 		$(TERRAFORM) apply \
+		-var spire_trust_domain=$(SPIRE_TRUST_DOMAIN) \
 		-var aws_region=$(AWS_REGION) \
 		-var oidc_bucket_name=$(OIDC_BUCKET_NAME) \
 		-var opa_policy_bucket_name=$(OPA_POLICY_BUCKET_NAME) \

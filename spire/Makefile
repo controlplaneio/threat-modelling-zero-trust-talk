@@ -11,6 +11,7 @@ terraform-apply:
 		$(TERRAFORM) apply \
 		-var aws_region=$(AWS_REGION) \
 		-var oidc_bucket_name=$(OIDC_BUCKET_NAME) \
+		-var spire_trust_domain=$(SPIRE_TRUST_DOMAIN) \
 		-auto-approve
 
 terraform-destroy:

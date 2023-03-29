@@ -6,6 +6,6 @@ resource "local_file" "opa_policy" {
 data "template_file" "opa_policy" {
   template = file("${path.module}/templates/example.rego")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }

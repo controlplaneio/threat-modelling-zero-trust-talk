@@ -16,7 +16,7 @@ func main() {
 
 	jwtSource, err := apiv2.NewJWTSource(ctx)
 	if err != nil {
-		log.Fatal("unable to create jwt jwtSource:", err)
+		log.Fatal("unable to create jwtSource:", err)
 	}
 	defer jwtSource.Close()
 

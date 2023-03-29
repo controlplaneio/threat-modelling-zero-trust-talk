@@ -2,6 +2,10 @@ variable "aws_region" {
   default = "eu-west-2"
 }
 
+variable "spire_trust_domain" {
+  default = "controlplane.io"
+}
+
 variable "oidc_bucket_name" {
   default = "spire-oidc-bucket"
 }

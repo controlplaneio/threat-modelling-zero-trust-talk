@@ -7,6 +7,7 @@ SPIRE_VERSION ?= 1.5.3
 KYVERNO_VERSION ?= 1.9.2
 
 AWS_REGION ?= eu-west-2
+SPIRE_TRUST_DOMAIN ?= controlplane.io
 S3_TARGET_BUCKET_NAME ?= $(NAME)-target
 OIDC_BUCKET_NAME ?= $(NAME)-oidc
 OPA_POLICY_BUCKET_NAME ?= $(NAME)-opa-policy

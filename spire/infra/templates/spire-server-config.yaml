@@ -11,7 +11,7 @@ data:
       bind_port = "8081"
       socket_path = "/run/spire/sockets/api.sock"
       trust_domain = "${spire_trust_domain}"
-      jwt_issuer = "https://${spire_trust_domain}"
+      jwt_issuer = "https://${spire_issuer}"
       data_dir = "/run/spire/data"
       log_level = "DEBUG"
       ca_key_type = "rsa-2048"

@@ -9,7 +9,7 @@ resource "aws_iam_role_policy_attachment" "federated_bucket_access" {
 }
 
 data "aws_iam_openid_connect_provider" "spire" {
-  url = "https://${local.spire_trust_domain}"
+  url = "https://${local.spire_issuer}"
 }
 
 data "aws_iam_policy_document" "federated_assume_role_policy" {
@@ -26,16 +26,16 @@ data "aws_iam_policy_document" "federated_assume_role_policy" {
     ]
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:aud"
+      variable = "${local.spire_issuer}:aud"
       values = [
         var.audience,
       ]
     }
     condition {
       test     = "StringEquals"
-      variable = "${local.spire_trust_domain}:sub"
+      variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${local.spire_trust_domain}/ns/default/sa/${var.sa_name}",
+        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.sa_name}",
       ]
     }
   }

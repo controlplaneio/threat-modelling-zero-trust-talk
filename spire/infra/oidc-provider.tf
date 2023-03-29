@@ -1,5 +1,5 @@
 resource "aws_iam_openid_connect_provider" "spire" {
-  url = "https://${local.spire_trust_domain}"
+  url = "https://${local.spire_issuer}"
   thumbprint_list = [
     data.external.thumbprint.result.value,
   ]
@@ -16,6 +16,6 @@ resource "local_file" "oidc_discovery_document" {
 data "template_file" "oidc_discovery_document" {
   template = file("${path.module}/templates/oidc-discovery-document.json")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_issuer = local.spire_issuer
   }
 }

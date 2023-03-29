@@ -5,6 +5,6 @@ data "external" "thumbprint" {
   ]
 
   query = {
-    host = local.spire_trust_domain
+    host = local.spire_issuer
   }
 }

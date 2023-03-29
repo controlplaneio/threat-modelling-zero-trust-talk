@@ -6,7 +6,7 @@ resource "local_file" "istio_operator" {
 data "template_file" "istio_operator" {
   template = file("${path.module}/templates/istio-operator.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }
 

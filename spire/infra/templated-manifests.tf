@@ -6,7 +6,8 @@ resource "local_file" "spire_server_config" {
 data "template_file" "spire_server_config" {
   template = file("${path.module}/templates/spire-server-config.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
+    spire_issuer = local.spire_issuer
   }
 }
 
@@ -18,7 +19,7 @@ resource "local_file" "spire_agent_config" {
 data "template_file" "spire_agent_config" {
   template = file("${path.module}/templates/spire-agent-config.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }
 
@@ -30,7 +31,7 @@ resource "local_file" "spire_controller_manager_config" {
 data "template_file" "spire_controller_manager_config" {
   template = file("${path.module}/templates/spire-controller-manager-config.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }
 
@@ -42,7 +43,7 @@ resource "local_file" "spire_cluster_spiffeid" {
 data "template_file" "spire_cluster_spiffeid" {
   template = file("${path.module}/templates/cluster-spiffeid.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }
 
@@ -54,6 +55,6 @@ resource "local_file" "jwks_retriever" {
 data "template_file" "jwks_retriever" {
   template = file("${path.module}/templates/jwks-retriever.yaml")
   vars = {
-    spire_trust_domain = local.spire_trust_domain
+    spire_trust_domain = var.spire_trust_domain
   }
 }

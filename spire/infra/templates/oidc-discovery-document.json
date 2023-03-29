@@ -1,6 +1,6 @@
 {
-  "issuer": "https://${spire_trust_domain}",
-  "jwks_uri": "https://${spire_trust_domain}/keys",
+  "issuer": "https://${spire_issuer}",
+  "jwks_uri": "https://${spire_issuer}/keys",
   "authorization_endpoint": "",
   "response_types_supported": [
     "id_token",
