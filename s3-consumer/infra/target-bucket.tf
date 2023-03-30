@@ -40,6 +40,6 @@ data "aws_iam_policy_document" "target_bucket_access" {
 
 resource "aws_s3_object" "file" {
   bucket = aws_s3_bucket.target.id
-  key = "test.txt"
-  source = "${path.module}/files/test.txt"
+  key = var.s3_object_key
+  source = "${path.module}/files/ric-flair-woo.gif"
 }

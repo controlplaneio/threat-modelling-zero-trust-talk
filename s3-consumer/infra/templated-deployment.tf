@@ -11,6 +11,6 @@ data "template_file" "deployment" {
     aws_region    = var.aws_region
     aws_role      = aws_iam_role.federated.arn
     s3_bucket     = aws_s3_bucket.target.bucket
-    s3_object_key = "test.txt"
+    s3_object_key = var.s3_object_key
   }
 }

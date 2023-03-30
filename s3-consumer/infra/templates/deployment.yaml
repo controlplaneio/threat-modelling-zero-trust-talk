@@ -35,6 +35,8 @@ spec:
             value: ${s3_bucket}
           - name: S3_OBJECT_KEY
             value: ${s3_object_key}
+        ports:
+          - containerPort: 8443
         volumeMounts:
           - name: spire-agent-socket
             mountPath: /spire-agent-socket

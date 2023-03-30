@@ -14,6 +14,10 @@ variable "target_bucket_name" {
   default = "spire-target-bucket"
 }
 
+variable "s3_object_key" {
+  default = "woo"
+}
+
 variable "role_name" {
   default = "spire-target-s3-role"
 }

@@ -43,12 +43,16 @@ make spire-deploy
 ## Example One
 
 1. Deploy the s3-consumer application
-2. View the logs to see what it's retrieved from S3
+2. Verify everything is working
 3. Cleanup
 
 ```shell
 make example-one-deploy
-make example-one-logs
+```
+
+[Check](https://localhost:30000/flair)
+
+```shell
 make example-one-clean
 ```
 

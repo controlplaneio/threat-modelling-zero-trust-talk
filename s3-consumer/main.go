@@ -6,13 +6,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/gin-gonic/gin"
+	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
 	jwtsvidv2 "github.com/spiffe/go-spiffe/v2/svid/jwtsvid"
 	apiv2 "github.com/spiffe/go-spiffe/v2/workloadapi"
 	"io"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 var (
@@ -30,47 +34,78 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	x509Source, err := apiv2.NewX509Source(ctx)
+	if err != nil {
+		log.Fatalf("unable to create jwtSource: %v\n", err)
+	}
+	defer x509Source.Close()
+
 	jwtSource, err := apiv2.NewJWTSource(ctx)
 	if err != nil {
 		log.Fatalf("unable to create jwtSource: %v\n", err)
 	}
 	defer jwtSource.Close()
 
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		log.Fatalf("unable to create aws default config: %v\n", err)
-	}
+	r := gin.Default()
+	r.GET("/flair", func(c *gin.Context) {
+		cfg, err := config.LoadDefaultConfig(c.Request.Context())
+		if err != nil {
+			log.Fatalf("unable to create aws default config: %v\n", err)
+		}
 
-	credentialsProvider := AssumeRoleWithWebIdentityCredentialsProvider{
-		jwtSource: jwtSource,
-		stsClient: sts.NewFromConfig(cfg),
-	}
+		credentialsProvider := AssumeRoleWithWebIdentityCredentialsProvider{
+			jwtSource: jwtSource,
+			stsClient: sts.NewFromConfig(cfg),
+		}
 
-	s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.Credentials = credentialsProvider
+		s3Client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.Credentials = credentialsProvider
+		})
+
+		resp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(s3Bucket),
+			Key:    aws.String(s3ObjectKey),
+		})
+		if err != nil {
+			log.Fatalf("unable to get s3 object: %v\n", err)
+		}
+		defer resp.Body.Close()
+
+		w := c.Writer
+		header := w.Header()
+		header.Set("Content-Type", "image/gif")
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			log.Fatalf("unable to read response from s3: %v\n", err)
+		}
 	})
 
-	resp, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s3Bucket),
-		Key:    aws.String(s3ObjectKey),
-	})
-	if err != nil {
-		log.Fatalf("unable to get s3 object: %v\n", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalf("unable to read response from s3: %v\n", err)
+	tlsConfig := tlsconfig.TLSServerConfig(x509Source)
+	srv := &http.Server{
+		Addr:      ":8443",
+		TLSConfig: tlsConfig,
+		Handler:   r,
 	}
 
-	log.Printf("retrieved from s3: %s\n", body)
+	go func() {
+		if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
+		}
+	}()
 
-	select {
-	case <-ctx.Done():
-		stop()
-		log.Println("shutting down")
+	<-ctx.Done()
+
+	stop()
+	log.Println("shutting down gracefully, press Ctrl+C again to force")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown: ", err)
 	}
+
+	log.Println("Server exiting")
 }
 
 type AssumeRoleWithWebIdentityCredentialsProvider struct {
