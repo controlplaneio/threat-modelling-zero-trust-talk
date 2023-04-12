@@ -23,9 +23,9 @@ variable "role_name" {
 }
 
 variable "sa_name" {
-  default = "aws-cli"
+  default = "s3-consumer"
 }
 
 variable "audience" {
-  default = "spire-test-s3"
+  default = "s3-consumer"
 }

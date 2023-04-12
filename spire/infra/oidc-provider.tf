@@ -3,9 +3,7 @@ resource "aws_iam_openid_connect_provider" "spire" {
   thumbprint_list = [
     data.external.thumbprint.result.value,
   ]
-  client_id_list = [
-    var.audience,
-  ]
+  client_id_list = var.audiences
 }
 
 resource "local_file" "oidc_discovery_document" {

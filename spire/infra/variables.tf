@@ -10,6 +10,10 @@ variable "spire_trust_domain" {
   default = "controlplane.io"
 }
 
-variable "audience" {
-  default = "spire-test-s3"
+variable "audiences" {
+  default = [
+    "spire-test-s3",
+    "s3-consumer",
+    "opa-istio",
+  ]
 }
