@@ -19,7 +19,7 @@ variable "role_name" {
 }
 
 variable "audience" {
-  default = "spire-test-s3"
+  default = "opa-istio"
 }
 
 variable "workload_one_sa" {

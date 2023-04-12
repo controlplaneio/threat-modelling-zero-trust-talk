@@ -1,4 +1,4 @@
-NAME := jwt-fetch
+NAME := jwt-retriever
 
 build:
 	docker build -t $(NAME) .

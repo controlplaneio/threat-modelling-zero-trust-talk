@@ -12,7 +12,6 @@ variable "spire_trust_domain" {
 
 variable "audiences" {
   default = [
-    "spire-test-s3",
     "s3-consumer",
     "opa-istio",
   ]

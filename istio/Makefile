@@ -19,7 +19,7 @@ terraform-apply:
 		-var oidc_bucket_name=$(OIDC_BUCKET_NAME) \
 		-var opa_policy_bucket_name=$(OPA_POLICY_BUCKET_NAME) \
 		-var role_name=fetch-opa-policy-role \
-		-var audience=spire-test-s3 \
+		-var audience=opa-istio \
 		-var workload_one_sa=workload-1 \
 		-var workload_two_sa=workload-2\
 		-auto-approve

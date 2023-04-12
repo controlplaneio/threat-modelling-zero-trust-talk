@@ -27,7 +27,7 @@ spec:
     spec:
       serviceAccountName: workload-1
       containers:
-      - image: jwt-fetch:latest
+      - image: jwt-retriever:latest
         imagePullPolicy: IfNotPresent
         name: spiffe-jwt
         volumeMounts:
