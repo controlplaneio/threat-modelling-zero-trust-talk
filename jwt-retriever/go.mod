@@ -1,4 +1,4 @@
-module example/spiffe-jwt-watcher
+module github.com/controlplaneio/threat-modelling-zero-trust-talk/jwt-retriever
 
 go 1.19
 

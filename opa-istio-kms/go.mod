@@ -1,4 +1,4 @@
-module github.com/controlplaneio/threat-modelling-zero-trust/opa-bundle-signer
+module github.com/controlplaneio/threat-modelling-zero-trust-talk/opa-istio-kms
 
 go 1.19
 

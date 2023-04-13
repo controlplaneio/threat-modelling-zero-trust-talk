@@ -1,4 +1,4 @@
-module github.com/controlplaneio/threat-modelling-zero-trust/apps/s3-consumer
+module github.com/controlplaneio/threat-modelling-zero-trust-talk/s3-consumer
 
 go 1.19
 

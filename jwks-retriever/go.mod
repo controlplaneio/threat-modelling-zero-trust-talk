@@ -1,4 +1,4 @@
-module github.com/controlplaneio/threat-modelling-zero-trust/apps/jwks-retriever
+module github.com/controlplaneio/threat-modelling-zero-trust-talk/jwks-retriever
 
 go 1.19
 
