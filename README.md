@@ -8,8 +8,8 @@ integrations in this manner will ultimately lead to a more comprehensive threat 
 Two demonstrations are included:
 - Demo 1 - Authenticate to AWS from a Pod in our Kind cluster, using an SVID issued by the cluster's SPIRE server.
 - Demo 2 - Deploy two workloads in an Istio service mesh, with External Authorisation set up using OPA sidecars. 
-OPA policy bundles are downloaded from an S3 bucket using the technique shown in Demo 1. Istio is integrated with SPIRE, 
-and Rego traffic authorisation policies are based on X.509 SVIDs provided to our workloads via SPIRE.
+OPA policy bundles are downloaded from an S3 bucket. Istio is integrated with SPIRE, and Rego traffic authorisation 
+policies are based on X.509 SVIDs provided to our workloads via SPIRE.
 
 ## Prereqs
 
@@ -18,8 +18,8 @@ In order to run the examples, an active set of AWS credentials must be available
 ## Infra Up
 
 1. Create a Kind cluster and preload third party images
-2. Build and load the various images
-3. Deploy SPIRE with OIDC Discovery exposed using an S3 Bucket (don't do this in production)
+2. Build and load the various images used in the demo
+3. Deploy SPIRE with OIDC Discovery exposed using an S3 Bucket
 
 More details can be found [here](spire/README.md).
 
@@ -94,7 +94,7 @@ make example-two-delete istio-clean
   * Kyverno policy to inject configured OPA sidecar
   * Istio configuration for loading and verifying the bundles from S3 using KMS and automagic AWS credentials
 * [OPA Policy](opa/example.rego) from template
-* [JWT Watcher](spiffe-jwt-watcher/main.go)
+* [JWT Watcher](jwt-retriever/main.go)
 
 ## Infra Down
 

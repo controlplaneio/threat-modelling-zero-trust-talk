@@ -47,7 +47,7 @@ jwks_retriever .u.> bucket
 | SPIFFE CSI Driver        | CSI Implementation that allows Workloads to access the Workload API **without** the need to mount Host Path Volumes |
 | JWKS Retriever           | Retrieves the JWKS for JWT SVIDs for the SPIRE Trust Domain                                                         |
 | OIDC Bucket              | Provides a publicly accessible OIDC Endpoint for the OIDC Provider                                                  |
-| OIDC Provider            | Established trust between the SPIRE Trust Domain and the AWS Account                                                |
+| OIDC Provider            | Establishes trust between the SPIRE Trust Domain and the AWS Account                                                |
 
 SPIRE periodically rotates the JWKS. If you run the cluster for an extended period of time, you will need to update the 
 JWKS to ensure the examples continue to work.
