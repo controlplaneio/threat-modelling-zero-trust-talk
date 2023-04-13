@@ -29,7 +29,7 @@ spec:
       containers:
       - image: jwt-retriever:latest
         imagePullPolicy: IfNotPresent
-        name: spiffe-jwt
+        name: jwt-retriever
         volumeMounts:
         - name: svid
           mountPath: /svid
