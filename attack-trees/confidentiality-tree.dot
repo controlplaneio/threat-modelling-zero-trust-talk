@@ -1,0 +1,117 @@
+digraph {
+	// Base Styling
+	rankdir="TB";
+	splines=true;
+	overlap=false;
+	nodesep="0.2";
+	ranksep="0.4";
+	bgcolor="transparent";
+	// label="Some Title";
+	labelloc="t";
+	fontname="Montserrat";
+	node [ fontname="Montserrat" margin=0.28 shape="plaintext" style="filled, rounded" ];
+	edge [ fontname="Montserrat" color="#2B303A" ];
+
+	// List of Nodes
+
+	// base nodes
+	// reality [ label="Reality" fillcolor="#2B303A" fontcolor="#ffffff" ]
+	// attack_win [ label="Access video\nrecordings in\nS3 bucket\n(attackers win)" fillcolor="#DB2955" fontcolor="#ffffff" ]
+
+	// green nodes == OR nodes
+	node [ color="#D6E9D5" ]
+	leak_sensitive_data [ label="Leak sensitive \ndata" ]
+	exfiltrate_data [ label="Exfiltrate data" ]
+	sniff_traffic [ label="Sniff traffic \nin transit" ]
+	communication_allowed [ label="Communication between \nworkloads allowed" ]
+	deliberate_policy_misconfig [ label="Deliberate policy \nmisconfiguration" ]
+	impersonate_workload [ label="Impersonate legitimate \nworkload" ]
+	tamper_registration_entries [ label="Tamper with \nregistration entries" ]
+	
+
+	// blue nodes == AND nodes
+	node [ color="#84BCE6" ]
+	eavesdrop_host_network [ label="Eavesdrop on \nhost network" ]
+	exfiltrate_from_PDP [ label="Exfiltrate data via \nexternal HTTP call \nfrom OPA container" ]
+
+	// white nodes == single nodes
+	node [ color="#DDDDDD" ]
+	compromise_legitimate_workload [ label="Compromise legitimate \nworkload" ]
+	hostnetwork [ label="Pod launched with \nHostnetwork" ]
+	intercept_user_traffic [ label="Intercept traffic \nfrom user" ]
+	intercept_external_traffic [ label="Intercept traffic to \nexternal service" ]
+	pivot [ label="Pivot from other \ncompromised workload" ]
+	accidental_policy_misconfig [ label="Accidental policy \nmisconfiguration" ]
+	outbound_network_path [ label="Outbound path available \nto attacker" ]
+	access_policy_repo [ label="Access policy repo" ]
+	write_access_policy_bundle [ label="Write access to policy \nbundle storage location" ]
+	compromise_private_key [ label="Compromise SPIRE server \nprivate key" ]
+	obtain_svid [ label="Obtain SVID from \legitimate workload" ]
+	compromise_data_store [ label="Compromise SPIRE \ndata store" ]
+	access_SPIRE_API [ label="Malicious access to \nSPIRE API" ]
+	compromise_SPIRE_controller [ label="Compromise SPIRE \ncontroller manager" ]
+
+	
+
+	// red nodes == out of scope
+	node [ color="#FAA0A0" ]
+	access_container [ label="Gain access to \ncontainer" ]
+	escalate_to_root [ label="Escape container and escalate \nto root on node" ]
+	
+
+	// List of Edges
+	leak_sensitive_data -> sniff_traffic
+	leak_sensitive_data -> exfiltrate_data
+	exfiltrate_data -> compromise_legitimate_workload
+	compromise_legitimate_workload -> access_container
+	sniff_traffic -> eavesdrop_host_network
+	eavesdrop_host_network -> access_container
+	eavesdrop_host_network -> hostnetwork
+	sniff_traffic -> escalate_to_root
+	sniff_traffic -> intercept_user_traffic
+	sniff_traffic -> intercept_external_traffic
+	exfiltrate_data -> pivot
+	pivot -> communication_allowed
+	communication_allowed -> accidental_policy_misconfig
+	communication_allowed -> deliberate_policy_misconfig
+	exfiltrate_data -> exfiltrate_from_PDP
+	exfiltrate_from_PDP -> deliberate_policy_misconfig
+	exfiltrate_from_PDP -> outbound_network_path
+	deliberate_policy_misconfig -> access_policy_repo
+	deliberate_policy_misconfig -> write_access_policy_bundle
+	exfiltrate_data -> impersonate_workload
+	impersonate_workload -> tamper_registration_entries
+	tamper_registration_entries -> compromise_data_store
+	tamper_registration_entries -> access_SPIRE_API
+	tamper_registration_entries -> compromise_SPIRE_controller
+	impersonate_workload -> compromise_private_key
+	impersonate_workload -> obtain_svid
+
+	// Subgraphs / Clusters
+
+	// these clusters enforce the correct hierarchies
+  
+	subgraph same_level_a {
+		rank=same;
+		sniff_traffic
+		exfiltrate_data
+	}
+
+	subgraph same_level_b {
+		rank=same;
+		deliberate_policy_misconfig
+		accidental_policy_misconfig
+	}
+
+	subgraph same_level_c {
+		rank=same;
+		deliberate_policy_misconfig
+		outbound_network_path
+	}
+	
+
+  // Enforcing ordering in levels
+  
+	sniff_traffic -> exfiltrate_data [ style="invis" ]
+	accidental_policy_misconfig -> deliberate_policy_misconfig -> outbound_network_path [ style="invis" ]
+}

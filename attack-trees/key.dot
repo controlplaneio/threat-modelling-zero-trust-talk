@@ -1,0 +1,55 @@
+digraph {
+	// Base Styling
+	rankdir="TB";
+	splines=true;
+	overlap=false;
+	nodesep="0.2";
+	ranksep="0.4";
+	bgcolor="transparent";
+	// label="Some Title";
+	labelloc="t";
+	fontname="Montserrat";
+	node [ fontname="Montserrat" margin=0.28 shape="plaintext" style="filled, rounded" ];
+	edge [ fontname="Montserrat" color="#2B303A" ];
+
+	// List of Nodes
+
+	// base nodes
+	// reality [ label="Reality" fillcolor="#2B303A" fontcolor="#ffffff" ]
+	// attack_win [ label="Access video\nrecordings in\nS3 bucket\n(attackers win)" fillcolor="#DB2955" fontcolor="#ffffff" ]
+
+	// green nodes == OR nodes
+	node [ color="#D6E9D5" ]
+	or_node [ label="OR Node" ]
+	
+
+	// blue nodes == AND nodes
+	node [ color="#84BCE6" ]
+	and_node [ label="AND Node" ]
+
+	// white nodes == single nodes
+	node [ color="#DDDDDD" ]
+	end_node [ label="Single Node" ]
+
+
+	// red nodes == out of scope
+	node [ color="#FAA0A0" ]
+	out_of_scope [ label="Out of Scope" ]
+	
+	// Subgraphs / Clusters
+
+	// these clusters enforce the correct hierarchies
+  
+	subgraph same_level_a {
+		rank=same;
+		or_node
+		and_node
+		end_node
+		out_of_scope
+	}
+	
+
+  // Enforcing ordering in levels
+  
+	or_node -> and_node -> end_node -> out_of_scope [ style="invis" ]
+}
