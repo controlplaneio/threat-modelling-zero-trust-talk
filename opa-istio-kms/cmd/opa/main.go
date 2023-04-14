@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/controlplaneio/threat-modelling-zero-trust/opa-bundle-signer/setup"
+	"github.com/controlplaneio/threat-modelling-zero-trust-talk/opa-istio-kms/setup"
 	"github.com/open-policy-agent/opa-envoy-plugin/plugin"
 	"github.com/open-policy-agent/opa/runtime"
 	"os"

@@ -1,7 +1,7 @@
 AWS_REGION ?= eu-west-2
 SPIRE_TRUST_DOMAIN ?= controlplane.io
-OIDC_BUCKET_NAME ?= spire-oidc-bucket
-OPA_POLICY_BUCKET_NAME ?= spire-opa-policy-bucket
+OIDC_BUCKET_NAME ?= spire-oidc
+OPA_POLICY_BUCKET_NAME ?= spire-opa-policy
 
 .PHONY: deploy
 deploy: terraform-apply install install-opa

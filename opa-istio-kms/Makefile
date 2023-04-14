@@ -7,4 +7,4 @@ load:
 	kind load docker-image $(NAME) --name tmzt
 
 build-cmd:
-	go build -o bin/opa-istio ./cmd/opa/
+	go build -o bin/opa-istio-kms ./cmd/opa/

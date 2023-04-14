@@ -19,24 +19,22 @@ const (
 )
 
 var (
-	tickDuration = 15 * time.Minute
+	tickDuration = 5 * time.Minute
 	options      = apiv2.WithClientOptions(apiv2.WithAddr(socketPath))
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	run(ctx, stop)
-}
+	defer stop()
 
-func run(ctx context.Context, stop context.CancelFunc) {
 	jwtSource, err := apiv2.NewJWTSource(ctx, options)
 	if err != nil {
-		log.Printf("Unable to create JWTSource: %v\n", err)
 		stop()
+		log.Fatalf("Unable to create JWTSource: %v\n", err)
 	}
 	defer jwtSource.Close()
 
-	writeJwt(ctx, stop, jwtSource)
+	writeJwt(ctx, jwtSource)
 
 	ticker := time.NewTicker(tickDuration)
 	defer ticker.Stop()
@@ -44,28 +42,27 @@ func run(ctx context.Context, stop context.CancelFunc) {
 	for {
 		select {
 		case <-ticker.C:
-			writeJwt(ctx, stop, jwtSource)
+			writeJwt(ctx, jwtSource)
 		case <-ctx.Done():
+			stop()
 			log.Println("Shutting down")
 			return
 		}
 	}
 }
 
-func writeJwt(ctx context.Context, stop context.CancelFunc, source *apiv2.JWTSource) {
+func writeJwt(ctx context.Context, source *apiv2.JWTSource) {
 	jwt, err := source.FetchJWTSVID(ctx, jwtsvid.Params{
 		Audience: audience,
 	})
 	if err != nil {
 		log.Printf("Unable to fetch SVID: %v\n", err)
-		stop()
+	} else {
+		log.Printf("Got jwt: %s\n", jwt.Marshal())
 	}
-
-	log.Printf("Got jwt: %s\n", jwt.Marshal())
 
 	err = os.WriteFile(path, []byte(jwt.Marshal()), 0644)
 	if err != nil {
 		log.Printf("Unable to write SVID: %v\n", err)
-		stop()
 	}
 }

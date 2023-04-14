@@ -1,5 +1,5 @@
 AWS_REGION ?= eu-west-2
-OIDC_BUCKET_NAME ?= spire-oidc-bucket
+OIDC_BUCKET_NAME ?= spire-oidc
 
 deploy: terraform-apply install-crds create-namespace apply oidc-upload
 

@@ -36,12 +36,14 @@ func main() {
 
 	x509Source, err := apiv2.NewX509Source(ctx)
 	if err != nil {
+		stop()
 		log.Fatalf("unable to create jwtSource: %v\n", err)
 	}
 	defer x509Source.Close()
 
 	jwtSource, err := apiv2.NewJWTSource(ctx)
 	if err != nil {
+		stop()
 		log.Fatalf("unable to create jwtSource: %v\n", err)
 	}
 	defer jwtSource.Close()
@@ -50,6 +52,7 @@ func main() {
 	r.GET("/flair", func(c *gin.Context) {
 		cfg, err := config.LoadDefaultConfig(c.Request.Context())
 		if err != nil {
+			stop()
 			log.Fatalf("unable to create aws default config: %v\n", err)
 		}
 
@@ -67,7 +70,10 @@ func main() {
 			Key:    aws.String(s3ObjectKey),
 		})
 		if err != nil {
-			log.Fatalf("unable to get s3 object: %v\n", err)
+			log.Printf("unable to get s3 object: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
 		}
 		defer resp.Body.Close()
 
@@ -76,7 +82,10 @@ func main() {
 		header.Set("Content-Type", "image/gif")
 		_, err = io.Copy(w, resp.Body)
 		if err != nil {
-			log.Fatalf("unable to read response from s3: %v\n", err)
+			log.Printf("unable to read response from s3: %v\n", err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
 		}
 	})
 
@@ -89,14 +98,13 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			stop()
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
 	<-ctx.Done()
-
 	stop()
-	log.Println("shutting down gracefully, press Ctrl+C again to force")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

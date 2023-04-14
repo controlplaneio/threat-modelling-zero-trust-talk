@@ -1,8 +1,8 @@
 NAME := s3-consumer
 
 SPIRE_TRUST_DOMAIN ?= controlplane.io
-OIDC_BUCKET_NAME ?= spire-oidc-bucket
-S3_TARGET_BUCKET_NAME ?= spire-target-bucket
+OIDC_BUCKET_NAME ?= spire-oidc
+S3_TARGET_BUCKET_NAME ?= spire-target
 ROLE_NAME ?= spire-target-s3-role
 SA_NAME ?= s3-consumer
 AUDIENCE ?= s3-consumer

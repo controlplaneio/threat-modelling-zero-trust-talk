@@ -1,7 +1,7 @@
 package setup
 
 import (
-	"github.com/controlplaneio/threat-modelling-zero-trust/opa-bundle-signer/internal"
+	"github.com/controlplaneio/threat-modelling-zero-trust-talk/opa-istio-kms/internal"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/cmd"
 	"github.com/spf13/cobra"

@@ -40,6 +40,7 @@ func NewKmsSignerVerifier(keyID string) (k KmsSignerVerifier, err error) {
 
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
+		stop()
 		return
 	}
 
@@ -67,6 +68,7 @@ func (k kmsSignerVerifier) Sign(alg kmsTypes.SigningAlgorithmSpec, msg string) (
 
 	resp, err := k.client.Sign(ctx, params)
 	if err != nil {
+		stop()
 		return
 	}
 
@@ -88,6 +90,7 @@ func (k kmsSignerVerifier) Verify(alg kmsTypes.SigningAlgorithmSpec, msg string,
 
 	resp, err := k.client.Verify(ctx, params)
 	if err != nil {
+		stop()
 		return
 	}
 

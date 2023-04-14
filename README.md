@@ -15,6 +15,13 @@ policies are based on X.509 SVIDs provided to our workloads via SPIRE.
 
 In order to run the examples, an active set of AWS credentials must be available when running the various commands.
 
+This examples uses a number of S3 Buckets, in order to ensure you get unique names, you set the `NAME` environment
+variable to something unique to you.
+
+```shell
+export NAME=something-unique-to-you
+```
+
 ## Infra Up
 
 1. Create a Kind cluster and preload third party images
