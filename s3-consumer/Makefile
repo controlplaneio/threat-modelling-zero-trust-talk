@@ -1,4 +1,5 @@
-NAME := s3-consumer
+CLUSTER_NAME ?= tmzt
+IMAGE_NAME := s3-consumer
 
 SPIRE_TRUST_DOMAIN ?= controlplane.io
 OIDC_BUCKET_NAME ?= spire-oidc
@@ -12,10 +13,10 @@ deploy: terraform-apply apply
 clean: delete terraform-destroy
 
 build:
-	docker build -t $(NAME) .
+	docker build -t $(IMAGE_NAME) .
 
 load:
-	kind load docker-image $(NAME) --name tmzt
+	kind load docker-image $(IMAGE_NAME) --name $(CLUSTER_NAME)
 
 terraform-apply:
 	cd infra && \

@@ -12,6 +12,8 @@ S3_TARGET_BUCKET_NAME ?= $(NAME)-target
 OIDC_BUCKET_NAME ?= $(NAME)-oidc
 OPA_POLICY_BUCKET_NAME ?= $(NAME)-opa-policy
 
+CLUSTER_NAME := $(NAME)
+
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ARCH := $(shell uname -m | sed 's/x86_64/amd64/')
 
@@ -27,11 +29,11 @@ help: ## Display this help.
 
 .PHONY: cluster-up
 cluster-up: kind ## Create the kind cluster
-	$(KIND) create cluster --name $(NAME) --config kind.yaml
+	$(KIND) create cluster --name $(CLUSTER_NAME) --config kind.yaml
 
 .PHONY: cluster-down
 cluster-down: kind ## Delete the kind cluster
-	-$(KIND) delete cluster --name $(NAME)
+	-$(KIND) delete cluster --name $(CLUSTER_NAME)
 
 .PHONY: cluster-preload-images
 cluster-preload-images: kind ## Preload the external images required for the demo

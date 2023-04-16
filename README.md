@@ -32,7 +32,9 @@ More details can be found [here](spire/README.md).
 
 ```shell
 make cluster-up cluster-preload-images
-make image-build-load-jwks-retriever image-build-load-s3-consumer image-build-load-jwt-retriever \
+make image-build-load-jwks-retriever \
+  image-build-load-s3-consumer \
+  image-build-load-jwt-retriever \
   image-build-load-opa-istio-kms
 make spire-deploy
 ```

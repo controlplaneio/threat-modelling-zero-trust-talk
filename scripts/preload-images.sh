@@ -16,5 +16,5 @@ for image in docker.io/istio/pilot:$ISTIO_VERSION \
   registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.4.0
 do
   docker pull $image
-  $KIND load docker-image $image --name $NAME
+  $KIND load docker-image $image --name $CLUSTER_NAME
 done
