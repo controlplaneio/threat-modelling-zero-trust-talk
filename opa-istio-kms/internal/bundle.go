@@ -13,13 +13,13 @@ func NewBundleSignature() (signature BundleSignature) {
 }
 
 type BundleSignature struct {
-	Headers       headers
+	Header        header
 	Payload       payload
-	SignedMessage string
 	Signature     string
+	SignedMessage string
 }
 
-type headers struct {
+type header struct {
 	Algorithm string `json:"alg"`
 	KeyID     string `json:"kid"`
 }
@@ -29,13 +29,13 @@ type payload struct {
 }
 
 func (s BundleSignature) WithAlgorithm(alg string) BundleSignature {
-	s.Headers.Algorithm = alg
+	s.Header.Algorithm = alg
 
 	return s
 }
 
 func (s BundleSignature) WithKeyID(keyID string) BundleSignature {
-	s.Headers.KeyID = keyID
+	s.Header.KeyID = keyID
 
 	return s
 }
@@ -53,7 +53,7 @@ func (s BundleSignature) WithSignature(sig string) BundleSignature {
 }
 
 func (s BundleSignature) MessageToSign() (string, error) {
-	encodedHeaders, err := s.Headers.encoded()
+	encodedHeaders, err := s.Header.encoded()
 	if err != nil {
 		return "", err
 	}
@@ -94,7 +94,7 @@ func (s BundleSignature) Parse(signature string) (BundleSignature, error) {
 		return s, err
 	}
 
-	err = json.Unmarshal(decodedHeader, &s.Headers)
+	err = json.Unmarshal(decodedHeader, &s.Header)
 	if err != nil {
 		return s, err
 	}
@@ -112,11 +112,11 @@ func (s BundleSignature) Parse(signature string) (BundleSignature, error) {
 }
 
 func (s BundleSignature) Algorithm() string {
-	return s.Headers.Algorithm
+	return s.Header.Algorithm
 }
 
 func (s BundleSignature) KeyID() string {
-	return s.Headers.KeyID
+	return s.Header.KeyID
 }
 
 func (s BundleSignature) FilesAsMap() map[string]bundle.FileInfo {
@@ -129,7 +129,7 @@ func (s BundleSignature) FilesAsMap() map[string]bundle.FileInfo {
 	return files
 }
 
-func (h headers) encoded() (headers string, err error) {
+func (h header) encoded() (headers string, err error) {
 	jsonHeaders, err := json.Marshal(h)
 	if err != nil {
 		return
