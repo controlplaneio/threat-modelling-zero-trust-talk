@@ -12,57 +12,83 @@ import (
 	apiv2 "github.com/spiffe/go-spiffe/v2/workloadapi"
 )
 
-const (
-	socketPath = "unix:///spire-agent-socket/socket"
-	audience   = "opa-istio"
-	path       = "/svid/token"
-)
-
 var (
-	tickDuration = 5 * time.Minute
-	options      = apiv2.WithClientOptions(apiv2.WithAddr(socketPath))
+	audience = os.Getenv("AUDIENCE")
+	path     = os.Getenv("JWT_PATH")
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	jwtSource, err := apiv2.NewJWTSource(ctx, options)
+	jwtHelper, err := NewJwtHelper(ctx)
 	if err != nil {
 		stop()
-		log.Fatalf("Unable to create JWTSource: %v\n", err)
+		log.Fatalf("failed to create jwt helper: %v", err)
 	}
-	defer jwtSource.Close()
+	defer func(jwtHelper JwtHelper) {
+		_ = jwtHelper.Close()
+	}(jwtHelper)
 
-	writeJwt(ctx, jwtSource)
+	jwtStream := make(chan *jwtsvid.SVID, 1)
 
-	ticker := time.NewTicker(tickDuration)
-	defer ticker.Stop()
+	getJwtAndStream(ctx, jwtHelper, jwtStream)
 
-	for {
-		select {
-		case <-ticker.C:
-			writeJwt(ctx, jwtSource)
-		case <-ctx.Done():
-			stop()
-			log.Println("Shutting down")
-			return
+	go func() {
+		defer close(jwtStream)
+
+		for {
+			select {
+			case <-time.After(10 * time.Minute):
+				getJwtAndStream(ctx, jwtHelper, jwtStream)
+			case <-ctx.Done():
+				stop()
+				log.Println("shutting down")
+				os.Exit(0)
+			}
+		}
+	}()
+
+	for jwt := range jwtStream {
+		err = os.WriteFile(path, []byte(jwt.Marshal()), 0644)
+		if err != nil {
+			log.Printf("failed to write jwt: %v\n", err)
+		} else {
+			log.Printf("updated jwt: %v\n", jwt)
 		}
 	}
 }
 
-func writeJwt(ctx context.Context, source *apiv2.JWTSource) {
-	jwt, err := source.FetchJWTSVID(ctx, jwtsvid.Params{
-		Audience: audience,
-	})
+func getJwtAndStream(ctx context.Context, jwtHelper JwtHelper, jwtStream chan *jwtsvid.SVID) {
+	jwt, err := jwtHelper.GetJwt(ctx, audience)
 	if err != nil {
-		log.Printf("Unable to fetch SVID: %v\n", err)
+		log.Printf("failed to get jwt: %v", err)
 	} else {
-		log.Printf("Got jwt: %s\n", jwt.Marshal())
+		jwtStream <- jwt
+	}
+}
+
+func NewJwtHelper(ctx context.Context) (helper JwtHelper, err error) {
+	jwtSource, err := apiv2.NewJWTSource(ctx)
+	if err != nil {
+		return
 	}
 
-	err = os.WriteFile(path, []byte(jwt.Marshal()), 0644)
-	if err != nil {
-		log.Printf("Unable to write SVID: %v\n", err)
-	}
+	helper = JwtHelper{jwtSource}
+	return
+}
+
+type JwtHelper struct {
+	source *apiv2.JWTSource
+}
+
+func (h JwtHelper) GetJwt(ctx context.Context, audience string) (jwt *jwtsvid.SVID, err error) {
+	jwt, err = h.source.FetchJWTSVID(ctx, jwtsvid.Params{
+		Audience: audience,
+	})
+	return
+}
+
+func (h JwtHelper) Close() error {
+	return h.source.Close()
 }

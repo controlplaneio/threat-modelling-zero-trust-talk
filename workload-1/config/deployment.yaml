@@ -30,6 +30,13 @@ spec:
       - image: jwt-retriever:latest
         imagePullPolicy: IfNotPresent
         name: jwt-retriever
+        env:
+          - name: SPIFFE_ENDPOINT_SOCKET
+            value: unix:///spire-agent-socket/socket
+          - name: AUDIENCE
+            value: opa-istio
+          - name: JWT_PATH
+            value: /svid/token
         volumeMounts:
         - name: svid
           mountPath: /svid
