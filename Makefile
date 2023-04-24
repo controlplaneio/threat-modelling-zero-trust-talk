@@ -110,13 +110,13 @@ example-two-validate-signature: ## Validate OPA bundle signature
 
 .PHONY: example-two-deploy
 example-two-deploy: ## Deploy workloads for Istio and OPA example
-	$(MAKE) -C workload-1 apply
-	$(MAKE) -C workload-2 apply
+	$(MAKE) -C workload-1 deploy
+	$(MAKE) -C workload-2 deploy
 
 .PHONY: example-two-delete
 example-two-delete: example-two-opa-clean ## Delete workloads for Istio and OPA example
-	$(MAKE) -C workload-1 delete
-	$(MAKE) -C workload-2 delete
+	$(MAKE) -C workload-1 clean
+	$(MAKE) -C workload-2 clean
 
 .PHONY: example-two-check-istio-certs
 example-two-check-istio-certs: ## Show Istio issued certificates

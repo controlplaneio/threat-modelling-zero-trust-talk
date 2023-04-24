@@ -35,7 +35,7 @@ data "aws_iam_policy_document" "federated_assume_role_policy" {
       test     = "StringEquals"
       variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.sa_name}",
+        "spiffe://${var.spire_trust_domain}/${var.sa_name}",
       ]
     }
   }

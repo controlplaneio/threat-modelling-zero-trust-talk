@@ -3,7 +3,7 @@ kind: ClusterSPIFFEID
 metadata:
   name: example-workloads
 spec:
-  spiffeIDTemplate: "spiffe://${spire_trust_domain}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}"
+  spiffeIDTemplate: "spiffe://${spire_trust_domain}/{{ .PodSpec.ServiceAccountName }}"
   namespaceSelector:
     matchLabels:
       example: "true"

@@ -40,7 +40,7 @@ data "aws_iam_policy_document" "opa_assume_role_policy" {
       test     = "StringEquals"
       variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.workload_one_sa}",
+        "spiffe://${var.spire_trust_domain}/${var.workload_one_sa}",
       ]
     }
   }
@@ -66,7 +66,7 @@ data "aws_iam_policy_document" "opa_assume_role_policy" {
       test     = "StringEquals"
       variable = "${local.spire_issuer}:sub"
       values = [
-        "spiffe://${var.spire_trust_domain}/ns/default/sa/${var.workload_two_sa}",
+        "spiffe://${var.spire_trust_domain}/${var.workload_two_sa}",
       ]
     }
   }

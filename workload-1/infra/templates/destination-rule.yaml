@@ -1,0 +1,11 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: workload-1-custom-spire-destrule
+spec:
+  host: workload-1
+  trafficPolicy:
+    tls:
+      mode: ISTIO_MUTUAL
+      subjectAltNames:
+      - spiffe://${spire_trust_domain}/workload-1
